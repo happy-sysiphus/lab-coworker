@@ -87,3 +87,20 @@ def test_followup_of_roundtrip(tmp_path):
     save_record(tmp_path, rec, "원문", "요약")
     loaded, _ = load_record(record_path(tmp_path, rec.id))
     assert loaded.followup_of == "2026-07-31_x-001"
+
+
+def test_update_resolution_matches_cause_by_canon_and_alias(tmp_path):
+    import yaml
+    overlay = tmp_path / "ontology" / "overlay.yaml"
+    overlay.parent.mkdir(parents=True)
+    overlay.write_text(yaml.safe_dump({"aliases": [
+        {"surface": "보론산 분해", "term_id": "lg:protodeboronation", "verdict": "positive"}]},
+        allow_unicode=True), encoding="utf-8")
+    rec = ExperimentRecord(id="2026-09-29_x-001", date="2026-09-29", suspected_causes=[
+        SuspectedCause(cause="보론산 분해"), SuspectedCause(cause="퍼지  부족")])
+    save_record(tmp_path, rec, "원문", "정리")
+    out = update_resolution(tmp_path, rec.id, True, "protodeboronation")
+    assert [(c.cause, c.status) for c in out.suspected_causes] == [
+        ("보론산 분해", "confirmed"), ("퍼지  부족", "rejected")]
+    out = update_resolution(tmp_path, rec.id, True, "퍼지 부족")   # 공백만 다른 같은 원인 — 새로 추가하지 않는다
+    assert [c.status for c in out.suspected_causes] == ["rejected", "confirmed"]

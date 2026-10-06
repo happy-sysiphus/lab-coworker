@@ -7,6 +7,8 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, Field
 
+from .vocab import load_vocabulary
+
 
 class Parameter(BaseModel):
     name: str
@@ -125,9 +127,11 @@ def update_resolution(
     rec, body = load_record(path)
     rec.resolution = Resolution(resolved=resolved, actual_cause=actual_cause, note=note)
     if actual_cause:
+        # 표현만 다른 같은 원인(공백·표기 차이, 승인된 별칭)을 기각으로 기록하지 않는다 — 그래프 원인 집계가 오염된다
+        same = load_vocabulary(vault).same
         for c in rec.suspected_causes:
-            c.status = "confirmed" if c.cause == actual_cause else "rejected"
-        if all(c.cause != actual_cause for c in rec.suspected_causes):
+            c.status = "confirmed" if same("cause", c.cause, actual_cause) else "rejected"
+        if all(c.status != "confirmed" for c in rec.suspected_causes):
             rec.suspected_causes.append(SuspectedCause(cause=actual_cause, status="confirmed"))
     write_md(path, rec.model_dump(), body)
     return rec
