@@ -1,78 +1,41 @@
-import type { RecordMeta } from "./types";
+import type { KgGraph, KgNode, KgNodeKind } from "./types";
 
-export type NodeKind = "exp" | "equipment" | "material" | "cause";
+// 그래프는 서버(kg.sqlite)가 만든다. 여기서는 화면 표시용 필터와 인접 맵만 계산한다.
+export const KIND_LABEL: Record<KgNodeKind, string> = {
+  experiment: "실험", equipment: "장비", material: "재료", technique: "기법", parameter: "파라미터",
+  metric: "지표", cause: "원인", symptom: "증상", passage: "원문",
+};
+export const KIND_COLOR: Record<KgNodeKind, string> = {
+  experiment: "#3b82f6", equipment: "#10b981", material: "#8b5cf6", technique: "#0ea5e9",
+  parameter: "#64748b", metric: "#ec4899", cause: "#f59e0b", symptom: "#ef4444", passage: "#94a3b8",
+};
+export const KIND_CHIP: Record<KgNodeKind, string> = {
+  experiment: "bg-blue-100 text-blue-700", equipment: "bg-emerald-100 text-emerald-700",
+  material: "bg-violet-100 text-violet-700", technique: "bg-sky-100 text-sky-700",
+  parameter: "bg-slate-200 text-slate-700", metric: "bg-pink-100 text-pink-700",
+  cause: "bg-amber-100 text-amber-700", symptom: "bg-red-100 text-red-700", passage: "bg-slate-100 text-slate-500",
+};
+// 증상 노드는 모든 실험에 붙는 허브라 처음엔 숨긴다. 원문(passage)은 매뉴얼 구축 뒤에 생긴다
+export const DEFAULT_HIDDEN: KgNodeKind[] = ["symptom", "passage"];
 
-export interface GraphNode {
-  id: string;
-  kind: NodeKind;
-  label: string;
-  full: string;       // cause는 원문 전체 — 상세 패널용
-  recIds: string[];   // 연결된 실험 레코드 id (exp 노드는 자기 자신)
-}
-export interface GraphLink { source: string; target: string }
+export interface ForceLink { source: string; target: string; rel: string }
+export interface ForceData { nodes: KgNode[]; links: ForceLink[]; adj: Map<string, Set<string>> }
 
-const CAUSE_LABEL_MAX = 30;
-const EXP_LABEL_MAX = 24;
-
-const truncate = (s: string, max: number) => (s.length > max ? s.slice(0, max) + "…" : s);
-
-// GET /api/records 메타에서 노드·엣지 유도 — 서버 신규 계층 없이 클라이언트에서 완결.
-// 동일성 판정은 trim 후 문자열 일치. 원인은 resolution.actual_cause(확정)만 노드로 올린다
-// — suspected_causes는 목록 API에 없고, 자유 서술이라 미확정까지 합치면 노드가 안 겹친다.
-export function buildGraph(records: RecordMeta[]): { nodes: GraphNode[]; links: GraphLink[] } {
-  const nodes = new Map<string, GraphNode>();
-  const linkKeys = new Set<string>();
-  const links: GraphLink[] = [];
-  const expIds = new Set(records.map((r) => r.id));
-
-  const addLink = (source: string, target: string) => {
-    const key = `${source}→${target}`;
-    if (linkKeys.has(key)) return;
-    linkKeys.add(key);
-    links.push({ source, target });
-  };
-  const entity = (kind: NodeKind, name: string, recId: string): string | null => {
-    const clean = name.trim();
-    if (!clean) return null;
-    const id = `${kind}:${clean}`;
-    const existing = nodes.get(id);
-    if (existing) {
-      if (!existing.recIds.includes(recId)) existing.recIds.push(recId);
-      return id;
-    }
-    const label = kind === "cause" ? truncate(clean, CAUSE_LABEL_MAX) : clean;
-    nodes.set(id, { id, kind, label, full: clean, recIds: [recId] });
-    return id;
-  };
-
-  // 라벨은 다른 화면과 동일하게 title→objective 우선 — experiment_type은 저카디널리티라
-  // (같은 유형 반복 실험이 흔함) 라벨이 전부 겹친다. full=id는 호버 툴팁용(유일값).
-  for (const r of records)
-    nodes.set(r.id, {
-      id: r.id, kind: "exp",
-      label: truncate(r.title || r.objective || r.experiment_type || r.id, EXP_LABEL_MAX),
-      full: r.id, recIds: [r.id],
-    });
-
-  for (const r of records) {
-    for (const e of r.equipment) {
-      const t = entity("equipment", e, r.id);
-      if (t) addLink(r.id, t);
-    }
-    for (const m of r.materials) {
-      const t = entity("material", m, r.id);
-      if (t) addLink(r.id, t);
-    }
-    if (r.resolution.resolved && r.resolution.actual_cause?.trim()) {
-      const t = entity("cause", r.resolution.actual_cause, r.id);
-      if (t) addLink(r.id, t);
-    }
-    // 참고문헌의 내부 레코드 참조 — 대상 존재·자기참조 제외, addLink가 dedup
-    for (const ref of r.references ?? []) {
-      if (ref.type === "record" && ref.record_id && ref.record_id !== r.id && expIds.has(ref.record_id))
-        addLink(r.id, ref.record_id);
-    }
-    if (r.followup_of && expIds.has(r.followup_of)) addLink(r.followup_of, r.id);
+// force-graph는 넘긴 객체에 좌표를 덧쓰므로 사본을 넘긴다. adj는 호버 하이라이트용 인접 맵.
+export function toForceData(g: KgGraph, hidden: ReadonlySet<KgNodeKind>): ForceData {
+  const nodes = g.nodes.filter((n) => !hidden.has(n.kind));
+  const ids = new Set(nodes.map((n) => n.id));
+  const links = g.links.filter((l) => ids.has(l.source) && ids.has(l.target));
+  const adj = new Map<string, Set<string>>();
+  for (const l of links) {
+    if (!adj.has(l.source)) adj.set(l.source, new Set());
+    if (!adj.has(l.target)) adj.set(l.target, new Set());
+    adj.get(l.source)!.add(l.target);
+    adj.get(l.target)!.add(l.source);
   }
-  return { nodes: [...nodes.values()], links };
+  return {
+    nodes: nodes.map((n) => ({ ...n })),
+    links: links.map((l) => ({ source: l.source, target: l.target, rel: l.rel })),
+    adj,
+  };
 }

@@ -1,83 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { buildGraph } from "./graph";
-import type { RecordMeta } from "./types";
+import { toForceData } from "./graph";
+import type { KgGraph } from "./types";
 
-function mk(over: Partial<RecordMeta>): RecordMeta {
-  return {
-    id: "r1", date: "2026-08-01", experiment_type: "증착", objective: "",
-    equipment: [], materials: [],
-    symptom: { category: "none", description: "" },
-    resolution: { resolved: false, actual_cause: null, note: "" },
-    needs_review: false, followup_of: null,
-    ...over,
-  };
-}
+const g: KgGraph = {
+  nodes: [
+    { id: "exp:r1", kind: "experiment", label: "r1", label_ko: "", status: "verified", full: "r1", rec_ids: ["r1"] },
+    { id: "lg:flow_reactor", kind: "equipment", label: "flow reactor", label_ko: "흐름 반응기",
+      status: "verified", full: "flow reactor", rec_ids: ["r1"] },
+    { id: "sym:low_value", kind: "symptom", label: "값이 낮음", label_ko: "", status: "verified",
+      full: "값이 낮음", rec_ids: ["r1"] },
+    { id: "tmp:material:xphospdg3", kind: "material", label: "XPhos Pd G3", label_ko: "", status: "temp",
+      full: "XPhos Pd G3", rec_ids: ["r1"] },
+  ],
+  links: [
+    { source: "exp:r1", target: "lg:flow_reactor", rel: "USES_EQUIPMENT", kind: "record" },
+    { source: "exp:r1", target: "sym:low_value", rel: "EXHIBITS", kind: "record" },
+    { source: "exp:r1", target: "tmp:material:xphospdg3", rel: "USES_MATERIAL", kind: "record" },
+  ],
+};
 
-describe("buildGraph", () => {
-  it("여러 레코드의 같은 장비·재료는 하나의 노드로 합친다", () => {
-    const { nodes, links } = buildGraph([
-      mk({ id: "a", equipment: ["ALD-02"], materials: [" TMA "] }),
-      mk({ id: "b", equipment: ["ALD-02"], materials: ["TMA"] }),
-    ]);
-    const eq = nodes.filter((n) => n.kind === "equipment");
-    const mat = nodes.filter((n) => n.kind === "material");
-    expect(eq).toHaveLength(1);
-    expect(eq[0].recIds).toEqual(["a", "b"]);
-    expect(mat).toHaveLength(1); // trim 후 동일
-    expect(links).toHaveLength(4);
+describe("toForceData", () => {
+  it("drops hidden kinds and the links that touch them", () => {
+    const d = toForceData(g, new Set(["symptom"]));
+    expect(d.nodes.map((n) => n.id)).toEqual(["exp:r1", "lg:flow_reactor", "tmp:material:xphospdg3"]);
+    expect(d.links.map((l) => l.rel)).toEqual(["USES_EQUIPMENT", "USES_MATERIAL"]);
   });
 
-  it("확정 원인만 노드가 되고 긴 라벨은 잘린다", () => {
-    const long = "전구체 열화가 원인이었다. 개봉 후 12일이 지나 활성도가 떨어진 것으로 확인".repeat(2);
-    const { nodes } = buildGraph([
-      mk({ id: "a", resolution: { resolved: true, actual_cause: long, note: "" } }),
-      mk({ id: "b", resolution: { resolved: false, actual_cause: "미확정 추측", note: "" } }),
-    ]);
-    const causes = nodes.filter((n) => n.kind === "cause");
-    expect(causes).toHaveLength(1);
-    expect(causes[0].label.length).toBeLessThanOrEqual(31);
-    expect(causes[0].label.endsWith("…")).toBe(true);
-    expect(causes[0].full).toBe(long);
+  it("builds adjacency in both directions", () => {
+    const d = toForceData(g, new Set());
+    expect([...d.adj.get("exp:r1")!].sort()).toEqual(["lg:flow_reactor", "sym:low_value", "tmp:material:xphospdg3"]);
+    expect([...d.adj.get("lg:flow_reactor")!]).toEqual(["exp:r1"]);
   });
 
-  it("실험 노드 라벨은 objective 우선, 없으면 experiment_type", () => {
-    const { nodes } = buildGraph([
-      mk({ id: "a", objective: "50nm Al2O3 증착", experiment_type: "증착" }),
-      mk({ id: "b", objective: "", experiment_type: "증착" }),
-    ]);
-    const exps = nodes.filter((n) => n.kind === "exp");
-    expect(exps.map((n) => n.label)).toEqual(["50nm Al2O3 증착", "증착"]);
-    expect(exps[0].full).toBe("a"); // 툴팁용 고유 id
-  });
-
-  it("followup_of 엣지는 대상 레코드가 있을 때만 만든다", () => {
-    const { links } = buildGraph([
-      mk({ id: "base" }),
-      mk({ id: "next", followup_of: "base" }),
-      mk({ id: "orphan", followup_of: "없는레코드" }),
-    ]);
-    expect(links).toEqual([{ source: "base", target: "next" }]);
-  });
-
-  it("record 참조 엣지는 대상이 있을 때만, paper·자기참조·부재 대상은 무시", () => {
-    const { links, nodes } = buildGraph([
-      mk({ id: "a" }),
-      mk({ id: "b", references: [
-        { type: "record", record_id: "a", title: "", url: "" },
-        { type: "record", record_id: "b", title: "", url: "" },
-        { type: "record", record_id: "없는것", title: "", url: "" },
-        { type: "paper", record_id: "", title: "논문", url: "https://doi.org/10.1/x" },
-      ] }),
-    ]);
-    expect(links).toEqual([{ source: "b", target: "a" }]);
-    expect(nodes.filter((n) => n.kind !== "exp")).toHaveLength(0); // paper는 노드 아님
-  });
-
-  it("빈 문자열 엔티티와 중복 엣지는 버린다", () => {
-    const { nodes, links } = buildGraph([
-      mk({ id: "a", equipment: ["", "  ", "RIE-01", "RIE-01"] }),
-    ]);
-    expect(nodes.filter((n) => n.kind === "equipment")).toHaveLength(1);
-    expect(links).toHaveLength(1);
+  it("copies nodes so force-graph mutation does not leak into state", () => {
+    const d = toForceData(g, new Set());
+    (d.nodes[0] as unknown as { x: number }).x = 5;
+    expect((g.nodes[0] as unknown as { x?: number }).x).toBeUndefined();
   });
 });

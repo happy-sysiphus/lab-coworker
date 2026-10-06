@@ -1,5 +1,5 @@
 import type {
-  AppConfig, AskResult, AuthConfig, Lab, LabMe, ParsedLog, RecordDetail, RecordMeta, Reference,
+  AppConfig, AskResult, AuthConfig, KgGraph, Lab, LabMe, ParsedLog, RecordDetail, RecordMeta, Reference,
 } from "./types";
 
 // AuthProvider가 등록한다 — api.ts가 Supabase나 라우터를 직접 알지 않게
@@ -32,7 +32,7 @@ export const api = {
     http<{ parsed: ParsedLog; gaps: string[] }>("POST", "/api/parse", { text }),
   saveRecord: (text: string, parsed: ParsedLog, followupOf?: string,
     qa?: { question: string; answer: string }[]) =>
-    http<{ id: string; path: string }>("POST", "/api/records",
+    http<{ id: string; path: string; run_id: string | null }>("POST", "/api/records",
       { text, parsed, followup_of: followupOf ?? null, qa: qa ?? [] }),
   updateRecord: (id: string, patch: Partial<Pick<RecordDetail["record"],
     "title" | "experiment_type" | "objective" | "equipment" | "materials" | "parameters" |
@@ -40,7 +40,9 @@ export const api = {
     http<RecordDetail>("PUT", `/api/records/${id}`, patch),
   saveRaw: (text: string) =>
     http<{ id: string; path: string }>("POST", "/api/records/raw", { text }),
-  ask: (text: string) => http<AskResult>("POST", "/api/ask", { text }),
+  ask: (text: string, runId?: string) =>
+    http<AskResult>("POST", "/api/ask", { text, run_id: runId ?? null }),
+  kgGraph: () => http<KgGraph>("GET", "/api/kg/graph"),
   listRecords: () => http<{ records: RecordMeta[] }>("GET", "/api/records"),
   getRecord: (id: string) => http<RecordDetail>("GET", `/api/records/${id}`),
   feedback: (recordId: string, resolved: boolean, cause?: string, note?: string) =>

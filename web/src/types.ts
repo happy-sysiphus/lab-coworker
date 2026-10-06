@@ -52,12 +52,32 @@ export interface RecordDetail {
   };
   body: string;
 }
+export type Evidence = "records" | "knowledge" | "web" | "none";
+export interface EvidenceCard {
+  id: string; kind: string; title: string; text: string;
+  source: { record_id?: string; doc_id?: string; page?: number; url?: string; wiki?: string; term_id?: string };
+}
 export interface AskResult {
   answer: string;
-  evidence: "records" | "wiki" | "none";
+  evidence: Evidence | "wiki";   // "wiki"는 이전 버전 세션(localStorage)에 남은 값 — 지금의 knowledge
   records: Pick<RecordMeta, "id" | "date" | "experiment_type" | "objective" | "symptom" | "resolution">[];
   wiki: string[];
+  cards?: EvidenceCard[];        // 이하 필드는 그래프 리서치 에이전트 응답 — 이전 세션엔 없다
+  terms?: { id: string; label: string }[];
+  unknown?: string[];
+  mode?: "seen" | "partial" | "unseen";
+  rounds?: number;
+  warnings?: string[];
+  run_id?: string;
 }
+export type KgNodeKind =
+  "experiment" | "equipment" | "material" | "technique" | "parameter" | "metric" | "cause" | "symptom" | "passage";
+export interface KgNode {
+  id: string; kind: KgNodeKind; label: string; label_ko: string;
+  status: "verified" | "temp"; full: string; rec_ids: string[];
+}
+export interface KgLink { source: string; target: string; rel: string; kind: string }
+export interface KgGraph { nodes: KgNode[]; links: KgLink[] }
 export interface AppConfig {
   required_fields: string[]; required_parameters: string[];
   provider: string; vault: string;
