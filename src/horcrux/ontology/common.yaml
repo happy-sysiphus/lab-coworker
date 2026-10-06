@@ -1,0 +1,93 @@
+# LAB GENE 공통 온톨로지 — 실험 온톨로지 suzuki-flow-v1의 변환본.
+# 원본: labgene configs/ontology/suzuki_flow.yaml (본평가 v1~v3에 쓴 프로파일, 하네스 해시 ed2bdfea8f3f…).
+# id·label·synonyms·source·verified는 원본 그대로다. verified: true는 2026-09-29에 EBI OLS4(ChEBI·RXNO·REX·MOP)와
+# qudt.org에서 id·라벨을 확인한 것이고, false는 레지스트리 id가 없거나 LabGene 응용 용어(lg:)다.
+# 이 변환에서 더한 것: kind 세분, parent, label_ko(화면 표시 전용, 연결에 쓰지 않음),
+# 단위의 파서용 표기·기호·차원·환산값, 응용 술어 spec_range.
+# ChEBI parent는 OLS4로 직접 확인한 것(chloroarene·bromoarene -> haloarene)만 채웠다.
+# 재사용 온톨로지 라이선스: ChEBI·RXNO·MOP·REX·QUDT 모두 CC BY 4.0.
+# 손편집하지 않는다. 볼트에는 이 파일의 사본이 복사되고, 연구실 변경은 ontology/overlay.yaml에 쌓인다.
+profile_id: labgene-common
+source_profile: suzuki-flow-v1
+version: 2026.10.0
+sources:
+- name: ChEBI
+  license: CC BY 4.0
+  url: https://www.ebi.ac.uk/chebi/
+- name: RXNO
+  license: CC BY 4.0
+  url: https://github.com/rsc-ontology/rxno
+- name: MOP
+  license: CC BY 4.0
+  url: http://obofoundry.org/ontology/mop.html
+- name: REX
+  license: CC BY 4.0
+  url: http://obofoundry.org/ontology/rex.html
+- name: QUDT
+  license: CC BY 4.0
+  url: https://www.qudt.org/
+terms:
+  - {id: 'quantitykind:Temperature', label: temperature, synonyms: [reaction temperature, reactor temperature], kind: parameter, parent: null, label_ko: 온도, source: QUDT, verified: true}
+  - {id: 'quantitykind:Time', label: time, synonyms: [reaction time], kind: parameter, parent: null, label_ko: 시간, source: QUDT, verified: true}
+  - {id: 'CHEBI:33363', label: palladium atom, synonyms: [palladium, Pd], kind: material, parent: null, label_ko: 팔라듐, source: ChEBI, verified: true}
+  - {id: 'CHEBI:38269', label: boronic acids, synonyms: [boronic acid, arylboronic acid, arylboronic acids, heteroarylboronic acid, heteroarylboronic acids], kind: material, parent: null, label_ko: 보론산, source: ChEBI, verified: true}
+  - {id: 'CHEBI:50979', label: boronate ester, synonyms: [boronate esters, boronic ester, boronic esters], kind: material, parent: null, label_ko: 보로네이트 에스터, source: ChEBI, verified: true}
+  - {id: 'CHEBI:38278', label: organoboron compound, synonyms: [organoboron compounds, organoboron reagent, organoborane, organoboranes], kind: material, parent: null, label_ko: 유기붕소 화합물, source: ChEBI, verified: true}
+  - {id: 'CHEBI:50887', label: haloarene, synonyms: [aryl halide, aryl halides, haloarenes, heteroaryl halide, heteroaryl halides], kind: material, parent: null, label_ko: 할로아렌, source: ChEBI, verified: true}
+  - {id: 'CHEBI:36686', label: chloroarene, synonyms: [aryl chloride, aryl chlorides, chloroarenes, heteroaryl chloride, heteroaryl chlorides], kind: material, parent: 'CHEBI:50887', label_ko: 클로로아렌, source: ChEBI, verified: true}
+  - {id: 'CHEBI:37148', label: bromoarene, synonyms: [aryl bromide, aryl bromides, bromoarenes, heteroaryl bromide, heteroaryl bromides], kind: material, parent: 'CHEBI:50887', label_ko: 브로모아렌, source: ChEBI, verified: true}
+  - {id: 'CHEBI:39174', label: 2-chloropyridine, synonyms: [o-chloropyridine, alpha-chloropyridine], kind: material, parent: null, label_ko: 2-클로로피리딘, source: ChEBI, verified: true}
+  - {id: 'CHEBI:26911', label: oxolane, synonyms: [THF, tetrahydrofuran], kind: material, parent: null, label_ko: 테트라하이드로퓨란, source: ChEBI, verified: true}
+  - {id: 'CHEBI:15377', label: water, synonyms: [H2O], kind: material, parent: null, label_ko: 물, source: ChEBI, verified: true}
+  - {id: 'CHEBI:22695', label: base, synonyms: [bases], kind: material, parent: null, label_ko: 염기, source: ChEBI, verified: true}
+  - {id: 'CHEBI:52214', label: ligand, synonyms: [ligands, supporting ligand, supporting ligands], kind: material, parent: null, label_ko: 리간드, source: ChEBI, verified: true}
+  - {id: 'CHEBI:35223', label: catalyst, synonyms: [catalysts], kind: material, parent: null, label_ko: 촉매, source: ChEBI, verified: true}
+  - {id: 'CHEBI:46787', label: solvent, synonyms: [solvents], kind: material, parent: null, label_ko: 용매, source: ChEBI, verified: true}
+  - {id: 'CHEBI:183318', label: triphenylphosphine, synonyms: [PPh3, Ph3P, triphenyl phosphine], kind: material, parent: null, label_ko: 트라이페닐포스핀, source: ChEBI, verified: true}
+  - {id: 'CHEBI:25224', label: methanesulfonate, synonyms: [mesylate, OMs], kind: material, parent: null, label_ko: 메테인설포네이트, source: ChEBI, verified: true}
+  - {id: 'lg:3_bromoquinoline', label: 3-bromoquinoline, synonyms: [], kind: material, parent: 'CHEBI:37148', label_ko: 3-브로모퀴놀린, source: labgene, verified: false}
+  - {id: 'lg:3_chloropyridine', label: 3-chloropyridine, synonyms: [m-chloropyridine], kind: material, parent: 'CHEBI:36686', label_ko: 3-클로로피리딘, source: labgene, verified: false}
+  - {id: 'lg:dimethylisoxazole_bpin', label: '3,5-dimethylisoxazole-4-boronic acid pinacol ester', synonyms: ['(3,5-dimethylisoxazol-4-yl)boronic acid pinacol ester', '3,5-dimethylisoxazole-4-Bpin'], kind: material, parent: 'lg:pinacol_boronate', label_ko: '3,5-다이메틸아이소옥사졸-4-보론산 피나콜 에스터', source: labgene, verified: false}
+  - {id: 'lg:benzofuran_2_boronic_acid', label: benzofuran-2-boronic acid, synonyms: [benzofuran-2-ylboronic acid, 2-benzofuranylboronic acid], kind: material, parent: 'CHEBI:38269', label_ko: 벤조퓨란-2-보론산, source: labgene, verified: false}
+  - {id: 'lg:n_boc_pyrrole_2_boronic_acid', label: N-Boc-pyrrole-2-boronic acid, synonyms: [1-Boc-2-pyrroleboronic acid, N-Boc-2-pyrroleboronic acid], kind: material, parent: 'CHEBI:38269', label_ko: N-Boc-피롤-2-보론산, source: labgene, verified: false}
+  - {id: 'lg:pinacol_boronate', label: pinacol boronate, synonyms: [pinacol ester, boronic acid pinacol ester, pinacol boronic ester, Bpin], kind: material, parent: 'CHEBI:50979', label_ko: 피나콜 보로네이트, source: labgene, verified: false}
+  - {id: 'lg:dbu', label: DBU, synonyms: ['1,8-diazabicyclo[5.4.0]undec-7-ene'], kind: material, parent: null, label_ko: DBU, source: labgene, verified: false}
+  - {id: 'RXNO:0000140', label: Suzuki-Miyaura coupling, synonyms: [Suzuki–Miyaura coupling, Suzuki coupling, Suzuki reaction, Suzuki cross-coupling, Suzuki-Miyaura cross-coupling, Suzuki–Miyaura cross-coupling, SMC, SMCC], kind: technique, parent: null, label_ko: 스즈키-미야우라 커플링, source: RXNO, verified: true}
+  - {id: 'RXNO:0000603', label: cross-coupling, synonyms: [cross coupling, cross-coupling reaction, cross-coupling reactions], kind: technique, parent: null, label_ko: 교차 커플링, source: RXNO, verified: true}
+  - {id: 'RXNO:0000039', label: carbon-carbon homocoupling reaction, synonyms: [homocoupling], kind: cause, parent: null, label_ko: 호모커플링, source: RXNO, verified: true}
+  - {id: 'REX:0000435', label: oxidative addition, synonyms: [], kind: technique, parent: null, label_ko: 산화적 첨가, source: REX, verified: true}
+  - {id: 'MOP:0000677', label: transmetallation, synonyms: [transmetalation], kind: technique, parent: null, label_ko: 금속 교환, source: MOP, verified: true}
+  - {id: 'REX:0000436', label: reductive elimination, synonyms: [], kind: technique, parent: null, label_ko: 환원적 제거, source: REX, verified: true}
+  - {id: 'lg:protodeboronation', label: protodeboronation, synonyms: [protodeborylation], kind: cause, parent: null, label_ko: 탈붕소화, source: labgene, verified: false}
+  - {id: 'lg:flow_reactor', label: flow reactor, synonyms: [continuous-flow reactor, continuous flow reactor, tubular reactor, droplet flow reactor], kind: equipment, parent: null, label_ko: 흐름 반응기, source: labgene, verified: false}
+  - {id: 'lg:reaction_yield', label: yield, synonyms: [reaction yield, product yield], kind: metric, parent: null, label_ko: 수율, source: labgene, verified: false}
+  - {id: 'lg:turnover_number', label: TON, synonyms: [turnover number], kind: metric, parent: null, label_ko: 촉매 회전수, source: labgene, verified: false}
+  - {id: 'lg:catalyst_loading', label: catalyst loading, synonyms: [loading, Pd loading, precatalyst loading], kind: parameter, parent: null, label_ko: 촉매 로딩, source: labgene, verified: false}
+  - {id: 'lg:residence_time', label: residence time, synonyms: [residence_time, t_res], kind: parameter, parent: null, label_ko: 체류 시간, source: labgene, verified: false}
+  - {id: 'lg:conversion', label: conversion, synonyms: [], kind: metric, parent: null, label_ko: 전환율, source: labgene, verified: false}
+  - {id: 'lg:precatalyst', label: precatalyst, synonyms: [precatalysts, pre-catalyst], kind: material, parent: null, label_ko: 전촉매, source: labgene, verified: false}
+  - {id: 'lg:palladacycle_precatalyst', label: palladacycle precatalyst, synonyms: [2-aminobiphenyl palladacycle, Buchwald precatalyst, Buchwald palladacycle, palladacycle], kind: material, parent: 'lg:precatalyst', label_ko: 팔라다사이클 전촉매, source: labgene, verified: false}
+  - {id: 'lg:precatalyst_g2', label: G2 precatalyst, synonyms: [G2, Pd G2, Gen 2, second-generation precatalyst, chloride palladacycle], kind: material, parent: 'lg:palladacycle_precatalyst', label_ko: 2세대 전촉매, source: labgene, verified: false}
+  - {id: 'lg:precatalyst_g3', label: G3 precatalyst, synonyms: [G3, Pd G3, Gen 3, third-generation precatalyst, mesylate palladacycle], kind: material, parent: 'lg:palladacycle_precatalyst', label_ko: 3세대 전촉매, source: labgene, verified: false}
+  - {id: 'lg:dialkylbiaryl_phosphine', label: dialkylbiaryl phosphine, synonyms: [dialkylbiarylphosphine, dialkylbiaryl phosphines, dialkylbiarylphosphines, Buchwald ligand, Buchwald ligands], kind: material, parent: null, label_ko: 다이알킬바이아릴 포스핀, source: labgene, verified: false}
+  - {id: 'lg:xphos', label: XPhos, synonyms: ['2-dicyclohexylphosphino-2'',4'',6''-triisopropylbiphenyl'], kind: material, parent: 'lg:dialkylbiaryl_phosphine', label_ko: XPhos, source: labgene, verified: false}
+  - {id: 'lg:sphos', label: SPhos, synonyms: ['2-dicyclohexylphosphino-2'',6''-dimethoxybiphenyl'], kind: material, parent: 'lg:dialkylbiaryl_phosphine', label_ko: SPhos, source: labgene, verified: false}
+  - {id: 'lg:ruphos', label: RuPhos, synonyms: ['2-dicyclohexylphosphino-2'',6''-diisopropoxybiphenyl'], kind: material, parent: 'lg:dialkylbiaryl_phosphine', label_ko: RuPhos, source: labgene, verified: false}
+  - {id: 'lg:xantphos', label: Xantphos, synonyms: ['4,5-bis(diphenylphosphino)-9,9-dimethylxanthene'], kind: material, parent: null, label_ko: Xantphos, source: labgene, verified: false}
+  - {id: 'lg:pcy3', label: PCy3, synonyms: [PCy 3, tricyclohexylphosphine, Cy3P], kind: material, parent: null, label_ko: PCy3, source: labgene, verified: false}
+  - {id: 'lg:ptbu3', label: PtBu3, synonyms: [P(t-Bu)3, P( t -Bu) 3, tri-tert-butylphosphine, tBu3P], kind: material, parent: null, label_ko: PtBu3, source: labgene, verified: false}
+units:
+  - {id: 'unit:DEG_C', label: degC, synonyms: [°C, degree Celsius, degrees Celsius, ℃, 도, ° C], label_ko: 섭씨도, symbol: °C, dimension: temperature, factor: 1.0, offset: 273.15, source: QUDT, verified: true}
+  - {id: 'unit:SEC', label: s, synonyms: [second, seconds, sec, 초], label_ko: 초, symbol: s, dimension: time, factor: 1.0, offset: 0.0, source: QUDT, verified: true}
+  - {id: 'unit:MIN', label: min, synonyms: [minute, minutes, 분], label_ko: 분, symbol: min, dimension: time, factor: 60.0, offset: 0.0, source: QUDT, verified: true}
+  - {id: 'unit:PERCENT', label: '%', synonyms: [percent], label_ko: 퍼센트, symbol: '%', dimension: ratio, factor: 0.01, offset: 0.0, source: QUDT, verified: true}
+  - {id: 'lg:unit_mol_percent', label: mol%, synonyms: [mol %, mole percent], label_ko: 몰 퍼센트, symbol: mol%, dimension: mole_fraction, factor: 0.01, offset: 0.0, source: labgene, verified: false}
+predicates:
+  - {id: 'lg:increases', label: increases, name: increases, synonyms: [raises, improves, enhances, accelerates], subject_kinds: [parameter, material, cause], object_kinds: [metric], approval: human, phrase_ko: '''{s}''를 높이면 ''{o}''가 증가한다', source: labgene, verified: false}
+  - {id: 'lg:decreases', label: decreases, name: decreases, synonyms: [lowers, reduces, slows], subject_kinds: [parameter, material, cause], object_kinds: [metric], approval: human, phrase_ko: '''{s}''를 높이면 ''{o}''가 감소한다', source: labgene, verified: false}
+  - {id: 'lg:requires', label: requires, name: requires, synonyms: [needs, depends on], subject_kinds: [technique, equipment], object_kinds: [material, parameter], approval: auto, phrase_ko: '''{s}''에 ''{o}''가 필요하다', source: labgene, verified: false}
+  - {id: 'lg:promotes', label: promotes, name: promotes, synonyms: [facilitates, favors, favours], subject_kinds: [parameter, material], object_kinds: [technique, cause], approval: human, phrase_ko: '''{s}''가 ''{o}''를 촉진한다', source: labgene, verified: false}
+  - {id: 'lg:inhibits', label: inhibits, name: inhibits, synonyms: [suppresses, poisons, deactivates], subject_kinds: [parameter, material], object_kinds: [technique, cause], approval: human, phrase_ko: '''{s}''가 ''{o}''를 억제한다', source: labgene, verified: false}
+  - {id: 'lg:competes_with', label: competes with, name: competes_with, synonyms: [competes_with, competing with], subject_kinds: [technique, cause], object_kinds: [technique, cause], approval: human, phrase_ko: '''{s}''와 ''{o}''가 경쟁한다', source: labgene, verified: false}
+  - {id: 'lg:spec_range', label: spec range, name: spec_range, synonyms: [allowed range, recommended range, operating range, spec], subject_kinds: [parameter], object_kinds: [equipment, technique, material], approval: human, phrase_ko: '''{o}''의 ''{s}'' 범위', source: labgene, verified: false}
+claims: []

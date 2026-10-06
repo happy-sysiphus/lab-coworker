@@ -1,0 +1,78 @@
+# LAB GENE 도메인 레지스트리 — 도메인 선택 화면과 CLI가 읽는다.
+# 시연 범위(2026-09-28·10-07 사용자 결정): 모든 도메인을 고를 수 있지만, 실제로 적재하는 어휘는
+# active 도메인의 vocabulary(실험 온톨로지) 하나다. showcase 도메인은 번들 표시만 한다.
+# ontologies 메타데이터 출처: ontology-research/science_ontologies.json(379개)과
+# science_ontologies_adoption.json(72개), 기준일 2026-09-25. usability·adoption이 null이면 72개 조사 밖이다.
+# ALD/ALE Schema v4는 조사 목록 밖이라 「재료 공정 화학 온톨로지 선정」(2026-09-28)에서 옮겼다.
+domains:
+  - id: materials-process-chem
+    name: 재료·공정·화학
+    status: active
+    vocabulary: suzuki-flow-v1
+    description: 재료·박막 공정과 화학 반응 실험. 실험 온톨로지(스즈키-미야우라 커플링 흐름 합성)로 진행한다.
+    bundle:
+      - {ontology: PMDco, role: 재료·시료·공정 구조}
+      - {ontology: CHMO, role: 합성·증착·분석 기법 이름}
+      - {ontology: ChEBI, role: 화학 물질과 역할}
+      - {ontology: RXNO, role: 명명 반응}
+      - {ontology: MOP, role: 분자 수준 과정}
+      - {ontology: QUDT, role: 단위·물리량}
+      - {ontology: ALD/ALE Schema v4, role: ALD 공정 변수 이름}
+  - id: life-science
+    name: 생명과학
+    status: showcase
+    description: 세포·조직·유전자 실험.
+    bundle:
+      - {ontology: OBI, role: 실험·분석 절차}
+      - {ontology: GO, role: 유전자 기능}
+      - {ontology: CL, role: 세포 유형}
+      - {ontology: UBERON, role: 해부 구조}
+      - {ontology: NCBITaxon, role: 생물 종}
+  - id: earth-environment
+    name: 지구·환경
+    status: showcase
+    description: 환경 시료와 관측 실험.
+    bundle:
+      - {ontology: ENVO, role: 환경·서식지}
+      - {ontology: SOSA/SSN, role: 관측·센서}
+      - {ontology: CF, role: 기후·해양 변수 표준명}
+      - {ontology: QUDT, role: 단위·물리량}
+  - id: energy-materials
+    name: 에너지 소재
+    status: showcase
+    description: 전지·에너지 소재 합성과 특성 평가.
+    bundle:
+      - {ontology: EMMO, role: 재료 상위 구조}
+      - {ontology: BattINFO, role: 전지 구성·시험}
+      - {ontology: CHAMEO, role: 특성 평가 방법}
+      - {ontology: QUDT, role: 단위·물리량}
+  - id: lab-instruments
+    name: 실험 장비·자동화
+    status: showcase
+    description: 분석 장비 데이터와 실험 자동화 프로토콜.
+    bundle:
+      - {ontology: AFO, role: 장비·분석 데이터}
+      - {ontology: LabOP, role: 자동화 프로토콜}
+      - {ontology: OBI, role: 실험 절차}
+      - {ontology: QUDT, role: 단위·물리량}
+ontologies:
+  PMDco: {name: Platform MaterialDigital Core Ontology, version: v3.1.1 (2026-09), license: CC BY 4.0, size: 약 1,400 용어, usability: production, adoption: academic, url: "https://materialdigital.github.io/core-ontology/"}
+  CHMO: {name: Chemical Methods Ontology, version: "2026-05", license: CC BY 4.0, size: 약 3,260 용어, usability: production, adoption: industry, url: "https://github.com/rsc-ontology/rsc-cmo"}
+  ChEBI: {name: Chemical Entities of Biological Interest, version: release 255 (2026-09), license: CC BY 4.0, size: 약 23.8만 용어, usability: production, adoption: industry, url: "https://www.ebi.ac.uk/chebi/"}
+  RXNO: {name: Name Reaction Ontology, version: "2021-12", license: CC BY 4.0, size: 약 1,000 용어, usability: production, adoption: industry, url: "https://github.com/rsc-ontology/rxno"}
+  MOP: {name: Molecular Process Ontology, version: "2022-05", license: CC BY 4.0, size: 약 3,700 용어, usability: usable, adoption: academic, url: "http://obofoundry.org/ontology/mop.html"}
+  QUDT: {name: "Quantities, Units, Dimensions and Types", version: "2026-09", license: CC BY 4.0, size: 단위 수천 개, usability: production, adoption: industry, url: "https://www.qudt.org/"}
+  ALD/ALE Schema v4: {name: ALD/ALE 공정 스키마, version: v4 (2026-08-03), license: CC BY 4.0, size: JSON Schema 4종, usability: null, adoption: null, url: "https://doi.org/10.5281/zenodo.21772766"}
+  OBI: {name: Ontology for Biomedical Investigations, version: "2026-07", license: CC BY 4.0, size: 약 5,240 클래스, usability: production, adoption: industry, url: "https://obi-ontology.org/"}
+  GO: {name: Gene Ontology, version: "2026-07", license: CC BY 4.0, size: 약 8.5만 클래스, usability: null, adoption: null, url: "http://geneontology.org/"}
+  CL: {name: Cell Ontology, version: "2026-06", license: CC BY 4.0, size: 약 1.9만 용어, usability: usable, adoption: industry, url: "https://obophenotype.github.io/cell-ontology/"}
+  UBERON: {name: Uberon multi-species anatomy ontology, version: "2026-06", license: CC BY 3.0, size: 약 2.7만 용어, usability: null, adoption: null, url: "http://uberon.org"}
+  NCBITaxon: {name: NCBI organismal classification, version: "2026-07", license: CC0 1.0, size: 약 285만 용어, usability: null, adoption: null, url: "https://github.com/obophenotype/ncbitaxon"}
+  ENVO: {name: Environment Ontology, version: "2026-06", license: CC0 1.0, size: 약 6,900 용어, usability: null, adoption: null, url: "http://environmentontology.org/"}
+  SOSA/SSN: {name: Semantic Sensor Network / SOSA, version: 2017-10 권고, license: W3C Software and Document License, size: 약 38 클래스, usability: production, adoption: public_infra, url: "https://www.w3.org/TR/vocab-ssn/"}
+  CF: {name: CF Standard Name Table, version: Version 95 (2026-09), license: CC0 1.0, size: 수천 개 표준명, usability: null, adoption: null, url: "https://cfconventions.org/"}
+  EMMO: {name: Elementary Multiperspective Material Ontology, version: v1.0.3 (2026-01), license: CC BY 4.0, size: 약 1,200 클래스, usability: production, adoption: academic, url: "https://emmo-repo.github.io"}
+  BattINFO: {name: Battery Interface Ontology, version: domain-battery 0.20.2 (2026-08), license: CC BY 4.0, size: 약 4,200 용어, usability: usable, adoption: academic, url: "https://big-map.github.io/BattINFO/index.html"}
+  CHAMEO: {name: CHAracterisation MEthodology Ontology, version: 1.0.3 (2026-08), license: CC BY 4.0, size: 약 1,600 용어, usability: production, adoption: academic, url: "https://w3id.org/emmo/domain/characterisation-methodology/chameo"}
+  AFO: {name: Allotrope Foundation Ontologies, version: REC/2026/06, license: CC BY 4.0, size: 약 3,500 용어, usability: production, adoption: industry, url: "https://allotropefoundation.org"}
+  LabOP: {name: Laboratory Open Protocol Language, version: v1.0a2 (2022-10), license: MIT, size: null, usability: limited, adoption: academic, url: "https://github.com/Bioprotocols/labop"}
