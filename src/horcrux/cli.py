@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from pathlib import Path
 
 from .config import load_config
 from .ingest import run_log
@@ -34,6 +35,15 @@ def _utf8_console():
                 stream.reconfigure(encoding="utf-8")
         except Exception:
             pass  # 콘솔 인코딩 조정 실패는 치명적이지 않음
+
+
+def _sync_quietly(cfg, record_id: str) -> None:
+    """저장·피드백 뒤 그래프 반영. 실패해도 기록은 이미 저장됐으니 경고만 남긴다(absorb와 같은 정책)."""
+    from . import kg
+    try:
+        kg.sync_records(cfg.vault, [record_id])
+    except Exception as e:
+        print(f"(KG 동기화 실패 — 'horcrux kg rebuild'로 재시도: {e})")
 
 
 def _run_ontology(cfg, action: str, ids: list[str]) -> None:
@@ -75,6 +85,8 @@ def main(argv: list[str] | None = None) -> None:
     sv.add_argument("--host", default="127.0.0.1")
     sv.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8765)))
     sub.add_parser("init", help="설정 마법사 (~/.horcrux/config.yaml 생성)")
+    kgp = sub.add_parser("kg", help="지식 그래프 재구축·상태")
+    kgp.add_argument("action", choices=["rebuild", "status"])
     on = sub.add_parser("ontology", help="연구 도메인 목록·선택")
     on.add_argument("action", choices=["domains", "use"])
     on.add_argument("ids", nargs="*", help="use: 고를 도메인 id들")
@@ -94,12 +106,15 @@ def main(argv: list[str] | None = None) -> None:
                     print(f"위키 갱신: {n}건")
                 except Exception as e:
                     print(f"(위키 편찬 실패 — 'horcrux absorb'로 재시도: {e})")
+                if isinstance(path, Path):
+                    _sync_quietly(cfg, path.stem)
         elif args.cmd == "ask":
             from .diagnose import run_ask
             run_ask(cfg)
         elif args.cmd == "feedback":
             from .feedback import run_feedback
             print(run_feedback(cfg, args.record_id, args.resolved == "y", args.cause, args.note))
+            _sync_quietly(cfg, args.record_id)
         elif args.cmd == "absorb":
             from .absorb import run_absorb
             n = run_absorb(cfg)
@@ -107,6 +122,16 @@ def main(argv: list[str] | None = None) -> None:
         elif args.cmd == "seed":
             from .seed import run_seed
             run_seed(cfg, args.n)
+        elif args.cmd == "kg":
+            from . import kg
+            if args.action == "rebuild":
+                out = kg.rebuild(cfg.vault)
+                print(f"재구축: 레코드 {out['records']}건, 엣지 {out['edges']}개, "
+                      f"미연결 표기 {out['temp']}개, 승인 클레임 {out['claims']}개, 건너뜀 {out['skipped']}건")
+            else:
+                st = kg.status(cfg.vault)
+                print(f"노드 {st['nodes']}개 (미연결 표기 {st['temp']}개), 엣지 {st['edges']}개, "
+                      f"마지막 동기화 {st['synced_at'] or '없음'}")
         elif args.cmd == "ontology":
             _run_ontology(cfg, args.action, args.ids)
         elif args.cmd == "serve":

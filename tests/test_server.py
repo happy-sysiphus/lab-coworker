@@ -45,11 +45,17 @@ def test_save_raw_needs_review(client):
     assert detail["record"]["needs_review"] is True
 
 
-def test_ask_passthrough(client, monkeypatch):
+def test_ask_passthrough_with_run_id(client, monkeypatch):
     c, _ = client
-    monkeypatch.setattr(server, "diagnose_data", lambda cfg, t: {
-        "answer": "a", "evidence": "none", "records": [], "wiki": []})
-    assert c.post("/api/ask", json={"text": "q"}).json()["evidence"] == "none"
+    seen = {}
+
+    def fake(cfg, t, run_id=None):
+        seen["run_id"] = run_id
+        return {"answer": "a", "evidence": "none", "records": [], "wiki": []}
+
+    monkeypatch.setattr(server, "diagnose_data", fake)
+    assert c.post("/api/ask", json={"text": "q", "run_id": "r1"}).json()["evidence"] == "none"
+    assert seen["run_id"] == "r1"
 
 
 def test_list_and_detail_404(client):
@@ -109,3 +115,39 @@ def test_config_endpoint(client):
     j = c.get("/api/config").json()
     assert "objective" in j["required_fields"]
     assert j["provider"] == "claude"
+
+
+def test_save_syncs_graph_and_records_run(client):
+    from horcrux import trace
+    c, vault = client
+    parsed = ParsedLog(experiment_type="Suzuki-Miyaura coupling", equipment=["flow reactor"],
+                       objective="o", results="r", summary="요약").model_dump()
+    r = c.post("/api/records", json={"text": "원문", "parsed": parsed}).json()
+    rid = r["id"]
+    graph = c.get("/api/kg/graph").json()
+    exp = next(n for n in graph["nodes"] if n["id"] == f"exp:{rid}")
+    assert exp["kind"] == "experiment"
+    link = {"source": f"exp:{rid}", "target": "lg:flow_reactor", "rel": "USES_EQUIPMENT", "kind": "record"}
+    assert link in graph["links"]
+    run = trace.get_run(vault, r["run_id"])
+    assert run["run"]["status"] == "done"
+    assert [e["stage"] for e in run["events"]] == ["p1.parse", "p1.save", "p1.wiki", "p2.normalize", "p2.store"]
+
+
+def test_feedback_and_edit_resync_graph(client):
+    from horcrux import kg
+    c, vault = client
+    save_record(vault, ExperimentRecord(id="2026-08-01_a-001", date="2026-08-01"), "원문", "s")
+    c.post("/api/feedback", json={"record_id": "2026-08-01_a-001", "resolved": True, "cause": "protodeboronation"})
+    out = {(r, d) for r, d, _ in kg.load_graph(vault).out["exp:2026-08-01_a-001"]}
+    assert ("CONFIRMED_CAUSE", "lg:protodeboronation") in out
+    c.put("/api/records/2026-08-01_a-001", json={"equipment": ["flow reactor"]})
+    out = {(r, d) for r, d, _ in kg.load_graph(vault).out["exp:2026-08-01_a-001"]}
+    assert ("USES_EQUIPMENT", "lg:flow_reactor") in out
+
+
+def test_kg_rebuild_endpoint(client):
+    c, vault = client
+    save_record(vault, ExperimentRecord(id="2026-08-01_a-001", date="2026-08-01"), "원문", "s")
+    out = c.post("/api/kg/rebuild").json()
+    assert out["records"] == 1 and out["claims"] == 0

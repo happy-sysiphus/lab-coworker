@@ -64,3 +64,29 @@ def test_cli_init_keeps_existing_on_empty(monkeypatch, isolated_config):
     main(["init"])
     data = yaml.safe_load(isolated_config.read_text(encoding="utf-8"))
     assert data == {"vault": "C:/old", "provider": "codex", "model": "o3"}
+
+
+def test_cli_kg_rebuild_and_status(tmp_path, monkeypatch, capsys):
+    from horcrux.records import ExperimentRecord, save_record
+    monkeypatch.setenv("HORCRUX_VAULT", str(tmp_path))
+    save_record(tmp_path, ExperimentRecord(id="2026-09-29_a-001", date="2026-09-29",
+                                           equipment=["flow reactor", "FR-01"]), "원문", "정리")
+    main = cli.main
+    main(["kg", "rebuild"])
+    assert "레코드 1건" in capsys.readouterr().out
+    main(["kg", "status"])
+    assert "미연결 표기 1개" in capsys.readouterr().out
+
+
+def test_log_syncs_graph_after_save(tmp_path, monkeypatch):
+    import horcrux.absorb as absorb_mod
+    from horcrux import kg
+    from horcrux.records import ExperimentRecord, save_record
+    monkeypatch.setenv("HORCRUX_VAULT", str(tmp_path))
+    path = save_record(tmp_path, ExperimentRecord(id="2026-09-29_a-001", date="2026-09-29",
+                                                  equipment=["flow reactor"]), "원문", "정리")
+    monkeypatch.setattr(cli, "run_log", lambda cfg: path)
+    monkeypatch.setattr(absorb_mod, "run_absorb", lambda cfg: 0)
+    cli.main(["log"])
+    assert ("USES_EQUIPMENT", "lg:flow_reactor") in {
+        (r, d) for r, d, _ in kg.load_graph(tmp_path).out["exp:2026-09-29_a-001"]}

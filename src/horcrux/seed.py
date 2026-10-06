@@ -32,5 +32,10 @@ def run_seed(cfg: Config, n: int) -> int:
         saved += 1
     if saved:
         run_absorb(cfg)
+        try:
+            from . import kg
+            kg.sync_records(cfg.vault)
+        except Exception as e:   # 저장은 확정 — 그래프는 'horcrux kg rebuild'로 다시 만들 수 있다
+            print(f"(KG 동기화 실패 — 'horcrux kg rebuild'로 재시도: {e})")
     print(f"합성 로그 {saved}건 저장 (위키 편찬 포함)")
     return saved

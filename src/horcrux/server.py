@@ -13,6 +13,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from . import kg, trace
 from .absorb import run_absorb
 from .auth import AuthCtx, verify_token
 from .config import Config, load_vault_config
@@ -92,6 +93,7 @@ class RawIn(BaseModel):
 
 class AskIn(BaseModel):
     text: str
+    run_id: str | None = None   # 클라이언트가 만든 실행 id — 대기 중 진행 단계를 읽는 데 쓴다
 
 
 class FeedbackIn(BaseModel):
@@ -123,12 +125,29 @@ class SettingsIn(BaseModel):
     rotate_invite: bool = False
 
 
-def _absorb_quietly(cfg: Config, lock: threading.Lock) -> None:
+def _sync_quietly(cfg: Config, record_id: str, run_id: str | None) -> None:
+    """레코드 하나를 그래프에 반영하고 실행 기록을 닫는다. 실패해도 저장은 이미 확정 — 경고만 남긴다."""
+    try:
+        c = kg.sync_records(cfg.vault, [record_id])
+        trace.event(cfg.vault, run_id, "p2.normalize", "ok",
+                    f"엣지 {c['edges']}개, 미연결 표기 {c['temp']}개", c)
+        trace.event(cfg.vault, run_id, "p2.store", "ok", "지식 그래프 반영")
+        trace.finish(cfg.vault, run_id)
+    except Exception as e:
+        print(f"(KG 동기화 실패 — 'horcrux kg rebuild'로 재시도: {e})")
+        trace.finish(cfg.vault, run_id, "failed")
+
+
+def _after_save(cfg: Config, lock: threading.Lock, record_id: str, run_id: str | None) -> None:
     try:
         with lock:
-            run_absorb(cfg)
+            n = run_absorb(cfg)
+        trace.event(cfg.vault, run_id, "p1.wiki", "ok", f"위키 아티클 {n}개 갱신")
     except Exception as e:  # 저장은 이미 확정 — absorb 실패는 로그만 (CLI와 동일 정책)
         print(f"(위키 편찬 실패 — 'horcrux absorb'로 재시도: {e})")
+        trace.event(cfg.vault, run_id, "p1.wiki", "fail", f"위키 편찬 실패: {e}")
+    with lock:
+        _sync_quietly(cfg, record_id, run_id)
 
 
 def _meta(rec) -> dict:
@@ -239,14 +258,17 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
         with lab_lock(ctx):
             last = _last_saves.get(key)
             if last and last[0] == h and time.time() - last[2] < 60:
-                return {"id": last[1], "path": ""}  # 동일 내용 재요청 — 기존 레코드로 응답
+                return {"id": last[1], "path": "", "run_id": None}  # 동일 내용 재요청 — 기존 레코드로 응답
             rec = to_record(c.vault, inp.parsed, today)
             rec.followup_of = inp.followup_of
             path = save_record(c.vault, rec, inp.text, inp.parsed.summary,
                                [(q.question, q.answer) for q in inp.qa])
             _last_saves[key] = (h, rec.id, time.time())
-        bg.add_task(_absorb_quietly, c, lab_lock(ctx))
-        return {"id": rec.id, "path": str(path)}
+        run_id = trace.start(c.vault, "record", rec.id)
+        trace.event(c.vault, run_id, "p1.parse", "ok", f"구조화 완료, 재질문 {len(inp.qa)}개")
+        trace.event(c.vault, run_id, "p1.save", "ok", f"{rec.id} 저장")
+        bg.add_task(_after_save, c, lab_lock(ctx), rec.id, run_id)
+        return {"id": rec.id, "path": str(path), "run_id": run_id}
 
     @app.post("/api/records/raw")
     def api_save_raw(inp: RawIn, ctx=Depends(require_lab)):
@@ -259,7 +281,7 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
     def api_ask(inp: AskIn, ctx=Depends(require_lab)):
         check_usage(ctx)
         c = lab_cfg(ctx)
-        return diagnose_data(c, inp.text)
+        return diagnose_data(c, inp.text, run_id=inp.run_id)
 
     @app.get("/api/records")
     def api_list(ctx=Depends(require_lab)):
@@ -269,7 +291,7 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
             try:
                 rec, _ = load_record(p)
             except Exception:
-                continue  # 손상 md 스킵 — retrieval과 동일 정책
+                continue  # 손상 md 스킵 — 그래프 동기화와 동일 정책
             out.append(_meta(rec))
         out.sort(key=lambda m: m["id"], reverse=True)
         return {"records": out}
@@ -286,6 +308,9 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
         _existing_record(c.vault, inp.record_id)
         with lab_lock(ctx):
             msg = run_feedback(c, inp.record_id, inp.resolved, inp.cause, inp.note)
+            run_id = trace.start(c.vault, "feedback", inp.record_id)
+            trace.event(c.vault, run_id, "fb.feedback", "ok", msg)
+            _sync_quietly(c, inp.record_id, run_id)
         return {"message": msg}
 
     @app.put("/api/records/{record_id}")
@@ -303,6 +328,7 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
             if inp.body is not None:
                 body = inp.body
             write_md(p, rec.model_dump(), body)
+            _sync_quietly(c, record_id, trace.start(c.vault, "record", f"편집 {record_id}"))
         return {"record": rec.model_dump(), "body": body}  # 상세 응답과 동일 형태
 
     @app.put("/api/records/{record_id}/references")
@@ -314,6 +340,23 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
             rec.references = inp.references
             write_md(p, rec.model_dump(), body)  # body 보존 — update_resolution과 동일
         return {"record": _meta(rec)}
+
+    @app.get("/api/kg/graph")
+    def api_kg_graph(ctx=Depends(require_lab)):
+        c = lab_cfg(ctx)
+        with lab_lock(ctx):   # 최신화가 그래프를 고칠 수 있다
+            return kg.graph_data(c.vault)
+
+    @app.post("/api/kg/rebuild")
+    def api_kg_rebuild(ctx=Depends(require_lab)):
+        c = lab_cfg(ctx)
+        with lab_lock(ctx):
+            run_id = trace.start(c.vault, "rebuild", "재구축")
+            out = kg.rebuild(c.vault)
+            trace.event(c.vault, run_id, "p2.store", "ok",
+                        f"레코드 {out['records']}건, 엣지 {out['edges']}개, 승인 클레임 {out['claims']}개", out)
+            trace.finish(c.vault, run_id)
+        return out
 
     @app.get("/api/auth-config")
     def api_auth_config():
