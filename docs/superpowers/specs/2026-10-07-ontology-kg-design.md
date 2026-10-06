@@ -33,6 +33,8 @@
 | 한국어 | 온톨로지를 번역하지 않는다. `label_ko`는 표시 전용이고, 한국어 표면형은 승인된 별칭으로만 연결된다 |
 | 에이전트 도구 선택 | 온톨로지 에이전트는 실패 사유별 코드 라우터. 리서치 에이전트는 재구성 단계에서 Claude가 고른다 |
 | 시연 | 실제 실행 기록을 다이어그램 배치 위에서 재생하는 워크플로 뷰 |
+| 전시 재생 | 하네스 본실험 v1 기록을 일반 LLM과 LAB GENE 두 줄로 재생한다. 상담·실험처럼 겉으로 보이는 흐름만 보여 주고, 검색 내부는 백엔드 세부라 그리지 않는다 |
+| 시연 데이터 | 본실험 v1의 가상 실험 54건을 코드로 레코드로 바꿔 시연 볼트를 채운다. 합성 로그는 쓰지 않는다 |
 
 ## 2. 다이어그램 대응
 
@@ -572,7 +574,6 @@ experiment 노드의 라벨은 기존 화면 규칙(`title || objective || exper
         - {ontology: MOP, role: 분자 수준 과정 (반응을 기록할 때)}
         - {ontology: QUDT, role: 단위·물리량}
         - {ontology: ALD/ALE Schema v4, role: ALD 공정 변수 이름}
-      demo_scenarios: [XPhos·SPhos 팔라듐 전촉매를 쓴 헤테로아릴 스즈키-미야우라 커플링 흐름 합성]
     - id: life-science
       name: 생명과학
       status: showcase
@@ -717,6 +718,7 @@ claims: []                    # 기여로 들어온 공유 클레임 (4.3 형식
 
 ### 10.3 화면
 
+- 화면은 탭 두 개다. "제품 실행" 탭은 아래의 다이어그램과 타임라인으로 실행 기록을 재생한다. "실험 재생" 탭은 10.5의 하네스 본실험 기록을 재생한다.
 - 데스크톱 왼쪽: 발표 다이어그램과 같은 3단 배치다. 위에 도메인·온톨로지 선택과 공통 온톨로지, 아래에 지식 그래프·벡터 색인 상자와 선택적 기여 상자를 둔다. CSS 그리드와 SVG 연결선으로 그리고 아이콘은 lucide-react를 쓴다. 새 의존성은 없다.
 - 연결선은 고정 목록(from, to)이다. 이벤트가 오면 해당 상자가 켜지고, 직전 단계에서 이어지는 연결선이 목록에 있으면 강조하고 "×3"처럼 횟수를 붙인다. 핵심은 루프 연결선이다: 품질 평가 → 도구 선택, 승인 → 기존 개념·관계, 웹 검색 → 지식·확장 후보, 피드백 → 지식 그래프.
 - 벡터 색인 상자는 Phase 2와만 이어진다. Phase 3의 유사도 검색 상자는 항상 회색이다.
@@ -731,9 +733,73 @@ claims: []                    # 기여로 들어온 공유 클레임 (4.3 형식
 
 ### 10.4 시연 운영
 
-- 시연 볼트는 실험 온톨로지 도메인으로 새로 만든다. 레코드는 스즈키-미야우라 커플링 흐름 합성 실험이고, `horcrux seed`가 active 도메인의 `demo_scenarios`로 합성 로그를 만든다. 기존 example-vault의 ALD 레코드는 이 어휘에 거의 연결되지 않으므로 시연에 쓰지 않는다.
-- 발표 전에 다음을 실제로 돌려 둔다: 도메인 선택, 레코드 저장, 매뉴얼 몇 쪽 구축, 질문 몇 개 답변(한국어 별칭 포함), seen·unseen 질의 각 하나, 웹 카드 지식 후보 보내기와 승인, 같은 질의 재실행.
-- 발표 때는 그 기록을 재생하고, 여유가 있으면 질의 하나만 라이브로 돌린다.
+- 시연 볼트는 10.6대로 본실험 v1의 실험 54건을 가져와 레포의 `demo-vault/`에 만든다. 기존 example-vault의 ALD 레코드는 실험 어휘에 거의 연결되지 않으므로 시연에 쓰지 않는다.
+- 발표 전에 시연 볼트에서 다음을 실제로 돌려 둔다: 도메인 선택, 매뉴얼 몇 쪽 구축, 질문 몇 개 답변(한국어 별칭 포함), seen·unseen 질의 각 하나, 웹 카드 지식 후보 보내기와 승인, 같은 질의 재실행.
+- 전시 기본 화면은 "실험 재생" 탭의 반복 재생이다. 제품 기능은 "제품 실행" 탭에서 준비한 기록을 재생하고, 여유가 있으면 질의 하나만 라이브로 돌린다.
+
+### 10.5 실험 재생
+
+원천은 labgene `artifacts/pilot-02`, 본실험 v1(2026-09-29)이다. 두 조건이 같은 과제 4개를 풀었고 모두 성공했다.
+
+| 조건 | 과제 성공 | 총 행동 | 상담 | 실험 |
+|---|---|---|---|---|
+| 일반 LLM | 4/4 | 35 | 5 | 30 |
+| LAB GENE | 4/4 | 28 | 4 | 24 |
+
+내보내기는 `scripts/export_experiment.py --run <run_dir> --replay web/public/replays/main-v1.json`으로 한 번 하고, 결과 JSON을 커밋한다. 하네스 산출물은 깃에 올라가지 않으므로 전시 PC는 이 JSON만 있으면 된다.
+
+- 읽는 것: 원장(`ledger.sqlite`)의 episodes, actions(consult·run_experiment), consult_exchanges(질문, 답, 인용 id), observations(조건, 결과, 성공 여부), notes(가설, 다음 행동 이유). 과제 파일의 제목·문제·파라미터·공개 목표값(수율, TON). 인용 청크의 본문 앞 300자는 제품 조건 지식 저장소(`initial/product/state/knowledge.sqlite`)에서 읽는다.
+- 읽지 않는 것: 비용 기록, 누수 게이트 기록, `private/`, 세션 로그. 검색 내부(어떤 청크·경로를 찾았는지)도 내보내지 않는다.
+- `--translate`를 주면 질문·답·메모를 기존 `llm.py`로 묶어 번역하고 원문과 번역을 함께 저장한다.
+
+```json
+{"run_id": "pilot-02", "label": "본실험 v1", "date": "2026-09-29", "action_budget": 50,
+ "tasks": [{"task_id": "suzuki_flow_01", "title": "…", "targets": {"yield": 78.67, "ton": 65.56}}],
+ "conditions": {
+   "baseline": {"name": "일반 LLM", "summary": {"success": 4, "actions": 35, "consults": 5, "experiments": 30},
+                "episodes": [{"task_id": "suzuki_flow_01", "outcome": "success", "actions_to_success": 8,
+                              "actions": [{"seq": 1, "kind": "consult", "question": {"en": "…", "ko": "…"},
+                                           "answer": {"en": "…", "ko": "…"}, "cited": [{"id": "…", "title": "…", "excerpt": "…"}]},
+                                          {"seq": 2, "kind": "experiment", "note": {"en": "…", "ko": "…"},
+                                           "parameters": {"catalyst": "SPhos Pd G3", "temperature": 100, "residence_time": 360, "catalyst_loading": 1.2},
+                                           "results": {"yield": 0.0, "ton": 0.0}, "success": false}]}]},
+   "product": {"name": "LAB GENE"}}}
+```
+
+화면:
+
+- 좌우 두 줄이다. 왼쪽은 일반 LLM, 오른쪽은 LAB GENE이다. 전시 영상의 좌우 분할 콘셉트와 같은 구도다.
+- 줄마다 위에 과제 4개 진행 표시와 행동 카운터가 있다. 아래로 행동 카드가 쌓인다.
+  - 상담 카드: 연구원 질문, 조언자 답, 인용 출처 칩. 칩을 누르면 발췌가 펼쳐진다.
+  - 실험 카드: 연구원 메모(가설), 조건, 수율·TON, 목표 대비 최고값 게이지, 성공 표시.
+- 두 줄은 같은 박자로 한 행동씩 나아간다. 과제를 먼저 끝낸 줄은 다음 과제로 넘어가고, 전체를 먼저 끝낸 줄은 결과 카드를 띄우고 기다린다.
+- 끝에 비교 카드가 뜬다: 과제 성공, 총 행동, 상담·실험 수.
+- 한국어·원문 토글, 재생·일시정지·한 단계씩·속도, 전시용 무한 반복 재생을 둔다.
+- 768px 미만에서는 두 줄을 위아래로 쌓는다.
+- 정렬·최고값·요약 계산은 `web/src/replay.ts`의 순수 함수로 둔다.
+- 검색 내부를 그리는 파이프라인 상자는 이 탭에 쓰지 않는다.
+
+### 10.6 시연 볼트 가져오기
+
+같은 스크립트의 `--vault demo-vault`가 본실험 v1의 실험 54건(두 조건 전부)을 horcrux 레코드 md로 쓴다. 코드 변환이고 LLM을 부르지 않는다. 이후 레코드 동기화·후보 선택은 보통 경로를 탄다.
+
+| 레코드 필드 | 값 |
+|---|---|
+| id, date | 실험 날짜(2026-09-29)와 기존 `make_record_id` 규칙 |
+| title | "{촉매} {온도}°C {체류 시간}s" |
+| experiment_type | Suzuki-Miyaura coupling |
+| objective | 과제 제목 |
+| equipment | flow reactor |
+| materials | 촉매 이름, 과제 제목의 기질 2종, DBU, THF, water |
+| parameters | temperature(°C), residence time(s), catalyst loading(mol%), catalyst. 앞의 셋은 canon에서 실험 어휘 라벨과 일치하고, catalyst는 파라미터 종류 용어가 없어 질문이 된다 |
+| results | "yield {수율} %, TON {TON}" |
+| symptom | 목표 미달이면 low_value("수율 또는 TON 목표 미달"), 성공이면 none |
+| notes | 연구원 가설 |
+| followup_of | 같은 에피소드의 직전 실험 레코드. 그래프의 후속 도구가 조건 변화와 결과 변화를 잇는다 |
+| 본문 | 원문 로그 = 연구원 메모와 결과 한 줄, 정리 = 코드 템플릿 |
+
+- "SPhos Pd G3" 같은 촉매 이름은 실험 어휘의 리간드·전촉매 세대와 바로 일치하지 않는다. 그래서 동일성·신규 용어 질문이 생기고, 이것이 시연의 질문 루프 장면이 된다.
+- 레코드 md는 커밋하고, `kg.sqlite`는 커밋하지 않는다.
 
 ## 11. API 변경
 
@@ -778,7 +844,7 @@ claims: []                    # 기여로 들어온 공유 클레임 (4.3 형식
 | `records.py` | `update_resolution`의 원인 대조를 vocab 동일성으로 바꾼다. 표현만 다른 같은 원인이 기각으로 기록되는 버그가 그래프의 원인 집계를 오염시키기 때문이다 |
 | `server.py` | 11의 엔드포인트, absorb 뒤 레코드 동기화, ask 확장, 기동 시 running → paused |
 | `cli.py` | `kg rebuild·status`, `manual add`, `ontology domains·use·pull·export`, `init`의 도메인 질문 |
-| `seed.py` | 시나리오를 active 도메인의 `demo_scenarios`에서 가져온다. 끝에 KG 동기화 |
+| `seed.py` | 끝에 KG 동기화 |
 
 그 밖
 
@@ -786,6 +852,8 @@ claims: []                    # 기여로 들어온 공유 클레임 (4.3 형식
 |---|---|
 | `pyproject.toml` | 의존성 `pypdf`, package-data |
 | `scripts/build_release.py` | PyInstaller `--collect-data horcrux` |
+| `scripts/export_experiment.py` (신규) | 하네스 본실험 원장에서 재생 JSON(`--replay`)과 시연 볼트 레코드(`--vault`)를 만든다. 번역은 `--translate` |
+| `demo-vault/` (신규) | 본실험 v1 실험 54건 레코드 md와 볼트 설정. `kg.sqlite`는 제외 |
 | `.gitignore` | `kg.sqlite` |
 | `AGENTS.md`, `docs/ARCHITECTURE.md`, `README.md` | 금지 사항·검색 방식·환경변수·구조 개정 |
 
@@ -795,6 +863,7 @@ claims: []                    # 기여로 들어온 공유 클레임 (4.3 형식
 |---|---|
 | `pages/Review.tsx` (신규) | 승인 화면 |
 | `pages/Flow.tsx`, `flow.ts` (신규) | 워크플로 뷰, 매핑·강조 순수 함수 |
+| `replay.ts` (신규), `public/replays/main-v1.json` (신규) | 실험 재생 탭의 정렬·최고값·요약 순수 함수, 내보낸 본실험 v1 데이터 |
 | `pages/Settings.tsx`, `pages/Onboarding.tsx` | 도메인 선택 카드와 번들 표, 시연 범위 안내 |
 | `pages/Graph.tsx` | 서버 그래프로 전환. 종류별 색, 승인 실선·초안 점선·충돌 굵은 테두리·자동 승인 아이콘. passage 노드는 기본 숨김 |
 | `graph.ts` | 클라이언트 그래프 계산 삭제 (`graph.test.ts` 포함). 사용처는 Graph.tsx뿐이다 |
@@ -851,8 +920,9 @@ claims: []                    # 기여로 들어온 공유 클레임 (4.3 형식
 - 피드백: 표현만 다른 같은 원인이 confirmed로 기록됨.
 - 워크플로 계약: 수리 루프를 타는 매뉴얼 구축과, 용어가 하나도 연결되지 않는 질의의 단계 순서를 그대로 단언한다. 화면은 이 이벤트만 그리므로 시연 화면이 실제 동작과 어긋날 수 없다.
 - 서버: TestClient로 바이트 업로드, 질문 목록·답변, ask 응답 형태, flow 이벤트 after 조회, 도메인 조회·저장.
-- 프론트(vitest): `flow.ts` 매핑·강조·횟수, Ask 배너·카드 라벨, Review 탭 필터, 도메인 안내 조건.
-- 수동 스모크 1회(실제 Claude·Gemini): 도메인 선택, 매뉴얼 10쪽 구축, 질문 5개 답변, seen·unseen 질의 각 1회, 지식 후보 보내기 뒤 재질의.
+- 실험 내보내기: 테스트 안에서 만든 작은 원장(조건별 에피소드 1개, 상담 1건, 실험 2건)으로 재생 JSON의 형태·개수, 시연 볼트 레코드가 `ExperimentRecord`로 읽힘, followup_of 사슬, 성공 여부에 따른 symptom을 확인한다. 번역은 monkeypatch한다.
+- 프론트(vitest): `flow.ts` 매핑·강조·횟수, `replay.ts` 정렬·최고값·요약, Ask 배너·카드 라벨, Review 탭 필터, 도메인 안내 조건.
+- 수동 스모크 1회(실제 Claude·Gemini): 시연 볼트 가져오기, 도메인 선택, 매뉴얼 10쪽 구축, 질문 5개 답변, seen·unseen 질의 각 1회, 지식 후보 보내기 뒤 재질의, 실험 재생 탭 반복 재생.
 
 ## 16. 구현 순서
 
@@ -860,10 +930,10 @@ claims: []                    # 기여로 들어온 공유 클레임 (4.3 형식
 
 | 마일스톤 | 범위 | 끝나면 되는 것 |
 |---|---|---|
-| M1 그래프 기반 | 실험 온톨로지 변환, 도메인 레지스트리와 CLI 선택, vocab·단위, kg.sqlite·레코드 동기화·재구축, trace, 리서치 에이전트(웹 제외), retrieval 삭제, 피드백 대조 수정, Ask·Graph 화면 전환 | 레코드만으로 그래프 질의가 돈다 |
+| M1 그래프 기반 | 실험 온톨로지 변환, 도메인 레지스트리와 CLI 선택, 실험 기록으로 시연 볼트 가져오기, vocab·단위, kg.sqlite·레코드 동기화·재구축, trace, 리서치 에이전트(웹 제외), retrieval 삭제, 피드백 대조 수정, Ask·Graph 화면 전환 | 실험 기록 레코드만으로 그래프 질의가 돈다 |
 | M2 온톨로지 에이전트 | 매뉴얼 업로드·변환·청킹, 임베딩, 에이전트 루프, 질문·승인 API, 승인 화면, 온보딩·설정의 도메인 선택 화면, pull·export | 매뉴얼 지식이 승인을 거쳐 그래프에 들어간다 |
 | M3 언씬 | 웹 검색(claude·api), 웹 카드 확인, partial·unseen, 지식 후보 보내기, Ask 대기 단계 표시 | 처음 보는 질문을 웹으로 답하고 기지로 바꾼다 |
-| M4 시연 | 워크플로 뷰, 시연 볼트·시나리오, 문서 개정, 수동 스모크 | 발표에서 실행 기록을 재생한다 |
+| M4 시연 | 워크플로 뷰, 실험 재생 탭과 재생 JSON 내보내기·번역, 시연 볼트에서 제품 실행 준비, 문서 개정, 수동 스모크 | 전시에서 본실험과 제품 실행을 재생한다 |
 
 ## 17. 제외와 넣을 시점
 
@@ -884,6 +954,9 @@ claims: []                    # 기여로 들어온 공유 클레임 (4.3 형식
 | 캔버스에서 엣지 직접 그리기, 기여 PR 자동화 | 요청이 있을 때 |
 | 웹 결과 자동 적재, codex·gemini 웹 검색, 웹 PDF 본문 파싱, 크롤링 | 요청이 있을 때. codex·gemini는 각 CLI의 내장 검색으로 붙인다 |
 | 복합 단위 환산(mL/min과 mol/s 등) | 그런 비교가 필요해질 때 |
+| 실험 재생에서 검색 내부(찾은 청크·경로) 표시 | 넣지 않는다 (사용자 결정: 백엔드 세부) |
+| 본실험 v2·v3 재생 | 끝나지 않은 실행이다. 다시 돌려 완료하면 같은 스크립트로 내보낸다 |
+| 합성 로그(`horcrux seed`)로 시연 볼트 채우기 | 넣지 않는다. 실험 기록을 쓴다 |
 
 ## 18. 구현 계획에서 확정할 것
 
@@ -908,3 +981,4 @@ claims: []                    # 기여로 들어온 공유 클레임 (4.3 형식
 
 - 2026-10-07 초판: 대화 1~4부(구조·저장, 구축 파이프라인·승인, 리서치 에이전트·공통 온톨로지, 워크플로 뷰)와 언씬 웹 처리.
 - 2026-10-07 도메인 선택 추가: 도메인은 모두 고를 수 있고 실제 어휘는 실험 온톨로지 `suzuki-flow-v1`로 한정(사용자 지시, 2026-09-28 결정과 같음). 이에 따라 ALD 중심 시드 150개 신규 작성을 취소하고, 술어를 실험 온톨로지의 6개와 `spec_range`로 바꿨다(이전 초안의 saturates·optimum_window·no_effect·causes_defect·uses 제거). `label_ko`는 표시 전용으로 바꾸고 예시를 실험 어휘 기준으로 고쳤다.
+- 2026-10-07 전시 재생 추가: 워크플로 뷰에 하네스 본실험 v1(`artifacts/pilot-02`)을 일반 LLM과 LAB GENE 두 줄로 재생하는 탭을 넣었다. 검색 내부는 백엔드 세부라 표시하지 않는다(사용자 결정). 시연 볼트는 합성 로그 대신 본실험 v1의 실험 54건을 가져와 채운다. 도메인 레지스트리의 `demo_scenarios`는 뺐다.
