@@ -47,10 +47,12 @@ pip install -e .[dev]
 ```
 horcrux seed          # 합성 데모 데이터 생성 + 위키 편찬 (개발용)
 horcrux log           # 실험 로그 기록 (부족 정보 되물음, 저장 후 위키 자동 편찬)
-horcrux ask           # 문제 질의 (과거 유사 사례·위키 근거로 답변)
+horcrux ask           # 문제 질의 (지식 그래프의 사례·원인·관계 근거로 답변)
 horcrux absorb        # 위키 재편찬 (log/seed가 자동 실행 — 실패 시 재시도용)
 horcrux feedback <id> --resolved y --cause "타겟 산화"   # 결과 피드백
 horcrux serve         # 웹 UI (LAB GENE) — http://127.0.0.1:8765
+horcrux kg rebuild|status   # 지식 그래프 재구축·상태 (kg.sqlite는 파생물)
+horcrux ontology domains|use <id>...   # 연구 도메인 목록·선택 (시연: 실제 어휘는 실험 온톨로지)
 ```
 
 ## 웹 UI (LAB GENE)

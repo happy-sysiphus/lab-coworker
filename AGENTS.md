@@ -17,6 +17,8 @@
 |---|---|
 | `docs/superpowers/specs/2026-07-19-horcrux-mvp-design.md` | 승인된 설계 스펙 — 무엇을/왜 |
 | `docs/superpowers/plans/2026-07-19-horcrux-mvp.md` | 구현 계획 — 실행 기준. Task 1~9, 태스크별 테스트·구현 코드·커밋 메시지 포함 |
+| `docs/superpowers/specs/2026-10-07-ontology-kg-design.md` | 온톨로지 KG 설계 — 구축은 벡터, 질의는 그래프 (MVP 스펙의 검색·인덱스 조항을 개정) |
+| `docs/superpowers/plans/2026-10-07-ontology-kg-m1-graph-core.md` | M1 구현 계획 — 어휘·그래프·리서치 에이전트 |
 
 이 파일(AGENTS.md)과 위 문서가 충돌하면 **스펙·계획서가 우선**한다.
 
@@ -32,10 +34,12 @@
 
 ## 핵심 설계 결정 (요약 — 상세는 스펙)
 
-- **md 파일이 진실의 원천**: 실험 1건 = `raw/experiments/*.md` 1개 (YAML frontmatter =
-  구조화 레코드). 원문 로그는 본문에 그대로 보존. DB·인덱스 없음.
-- **검색은 LLM-select 단일 모드**: 전 레코드 요약 카탈로그(해결 정보 포함) + 위키 아티클
-  목록을 LLM에 주고 관련 항목을 고르게 한다. 규모 가정: 연구실당 레코드 ≤50건.
+- **진실은 md와 온톨로지 YAML**: 실험 1건 = `raw/experiments/*.md` 1개 (YAML frontmatter =
+  구조화 레코드). 원문 로그는 본문에 그대로 보존. 어휘는 `ontology/{common,overlay,claims}.yaml`.
+  `kg.sqlite`는 언제든 `horcrux kg rebuild`로 다시 만드는 파생물이다.
+- **질의는 그래프만**: ask는 리서치 에이전트(`research_agent.py`)가 용어 연결 → 그래프 도구 →
+  증거 카드 → 답변 → 코드 출처 검증으로 처리한다. 벡터·전문 검색·LLM-select 카탈로그는 질의에 쓰지 않는다.
+  벡터는 온톨로지 구축 단계(M2)에서만 쓴다.
 - **LLM 어댑터 격리**: `llm.py`만 호출 방식을 안다. API 키 없이 로컬 CLI subprocess —
   provider `claude`(`claude -p`) / `gemini` / `codex`(`codex exec`), 기본 `claude`.
   structured output은 스키마를 프롬프트에 포함해 JSON 출력 지시 → JSON 추출 → pydantic 검증.
@@ -43,8 +47,8 @@
   (의미 매칭은 LLM, 게이트 판단은 코드).
 - **absorb 자동 체이닝**: log 저장 후 자동 실행(실패는 경고만 — 저장 유지), seed 끝에도
   1회. `needs_review` 레코드는 스킵. `horcrux absorb` 수동 명령은 재시도용.
-- **ask는 단일 흐름**: 질문 1회 → 검색 → 응답. 재질문·질의 구조화·증상 분기 없음.
-  근거 3단 라벨(레코드 있음 / 위키만 / 둘 다 없음)로 답변 출처를 정직하게 표시.
+- **ask 흐름**: 사용자에게 되묻지 않는다. 내부 품질 루프만 있다 — 질문 재구성 1회(M3부터 웹 1회).
+  근거 라벨은 records(사례) / knowledge(지식만) / web / none과 mode(seen·partial·unseen).
 - 환경변수는 3개뿐: `HORCRUX_VAULT`(기본 `example-vault`), `HORCRUX_PROVIDER`, `HORCRUX_MODEL`.
 - **서버 배포 모드(옵트인)**: `SUPABASE_URL` 설정 시 `create_app(cfg, deploy=...)`가 Supabase
   JWT 인증을 요구하고 연구실별로 `DATA_DIR/vaults/<lab_id>`에 볼트를 격리한다. 미설정
@@ -55,7 +59,7 @@
 
 - 단위 테스트는 **LLM 호출 없이** 통과해야 한다 — LLM 호출(`generate`/`generate_parsed`)은
   전부 monkeypatch. 실제 CLI 호출은 수동 E2E 스모크 1회뿐.
-- 실행: `pip install -e ".[dev]"` (Task 1 이후) → `pytest`
+- 실행: `PYTHONPATH=src py -3.13 -m pytest --basetemp=.pytest_tmp -q` (PATH의 python은 다른 프로젝트 것이다)
 
 ## 환경 주의
 
@@ -65,20 +69,20 @@
 
 스펙의 YAGNI 목록이 근거다. 특히:
 
-- 벡터 검색·임베딩·인덱스 계층 (reindex 명령 포함) — 레코드 수백 건 초과 시 별도 개정으로 도입
-- ask의 재질문·질의 구조화·증상 하드 분기
+- 질의 단계의 벡터·전문 검색·LLM-select 카탈로그 (구축 단계 임베딩은 2026-10-07 스펙이 허용한다)
+- ask에서 사용자에게 되묻는 재질문·증상 하드 분기 (내부 재구성 1회는 스펙이 허용한다)
 - 웹 UI, 인증/다중 사용자, 자동 스케줄링, 온프레미스 생성 LLM, 모델 재학습, 실데이터 마이그레이션 도구
 
 ## 레이어 소유 경계 (병렬 작업 시)
 
 | 영역 | 소유 파일 |
 |---|---|
-| 백엔드 (코어) | `src/horcrux/{ingest,diagnose,retrieval,absorb,feedback,records,llm,config,seed}.py` + 기존 테스트 |
+| 백엔드 (코어) | `src/horcrux/{ingest,diagnose,research_agent,vocab,kg,trace,absorb,feedback,records,llm,config,seed}.py` + 기존 테스트 |
 | 공용 접점 | `cli.py`, `pyproject.toml`, `README.md`, `docs/**` |
 
 프론트가 의존하는 백엔드 인터페이스(전체 목록):
 `parse_log(cfg, text, vcfg)` · `missing_required(parsed, vcfg)` · `to_record(vault, parsed, date)` ·
 `save_record(vault, rec, text, summary)` · `save_unparsed(vault, text, err)` · `load_vault_config(vault)` ·
-`diagnose(cfg, text)` · `run_absorb(cfg)` · `run_feedback(cfg, id, resolved, cause, note) -> str` ·
-`run_seed(cfg, n)`.
+`diagnose(cfg, text)` · `diagnose_data(cfg, text, run_id=None)` · `run_absorb(cfg)` · `run_feedback(cfg, id, resolved, cause, note) -> str` ·
+`run_seed(cfg, n)` · `kg.graph_data(vault)` · `kg.rebuild(vault)` · `trace.get_run(vault, run_id, after)`.
 시그니처 변경은 백엔드 먼저 수정 후 프론트가 따라간다 — 같은 파일 동시 수정 금지.

@@ -23,12 +23,12 @@ wet lab(재료·공정·화학) 연구실의 **실험 기록과 문제 진단 �
 
 | 원칙 | 내용 |
 |---|---|
-| **md 파일이 유일한 진실** | 실험 1건 = md 1개(YAML frontmatter = 구조화 데이터, 본문 = 원문 로그). 실험 데이터용 DB·검색 인덱스는 없다. |
+| **진실은 md와 온톨로지 YAML** | 실험 1건 = md 1개(YAML frontmatter = 구조화 데이터, 본문 = 원문 로그). 어휘는 `ontology/*.yaml`. `kg.sqlite`(노드·엣지·실행 기록)는 재구축 가능한 파생물이다. |
 | **DB는 사람·권한용** | 배포 모드에서만 Supabase Postgres를 쓴다. 저장 대상은 연구실, 멤버, 사용량, 암호화된 LLM 토큰이다. 실험 기록은 절대 DB에 넣지 않는다. |
 | **LLM 어댑터 격리** | LLM을 어떻게 호출하는지는 `llm.py`만 안다. 기본은 로컬 CLI 서브프로세스(구독 기반, API 키 불필요)다. |
 | **의미 판단은 LLM, 게이트 판단은 코드** | 필수 항목이 기재됐는지 의미로 매칭하는 일은 LLM이 한다. 재질문을 할지는 코드가 설정과 대조해 결정한다. LLM이 없는 이름을 지어내면 코드가 걸러낸다. |
 | **로컬 모드 무변경** | `SUPABASE_URL`이 없으면 인증 없이 단일 볼트로 동작한다. 배포 기능은 전부 옵트인이다. |
-| **검색은 LLM-select** | 벡터 검색 없이, 전체 레코드 카탈로그를 LLM에 주고 관련 항목을 고르게 한다. 연구실당 수백 건 규모를 가정한다. |
+| **질의는 그래프만** | ask는 리서치 에이전트가 그래프 도구로 증거 카드를 모아 답하고 코드가 출처를 검증한다. 벡터는 온톨로지 구축 단계에서만 쓴다(2026-10-07 스펙). |
 
 ---
 
@@ -142,8 +142,11 @@ required_parameters: [챔버 온도, 압력]   # 연구실이 반드시 기록�
 | `llm.py` | **LLM 호출의 유일한 지점** | `generate(cfg, system, user) -> str`, `generate_parsed(cfg, system, user, Schema)` |
 | `ingest.py` | 로그 구조화, 재질문 목록 생성 | `parse_log(cfg, text, vcfg)`, `missing_required(parsed, vcfg) -> list[질문]`, `to_record`, `save_unparsed` |
 | `absorb.py` | 위키 편찬, 관례 편찬 | `run_absorb(cfg)`, `compile_conventions(cfg, texts)` |
-| `retrieval.py` | LLM-select 검색 | `retrieve(cfg, query, top_k=3)` |
-| `diagnose.py` | 문제 진단 답변 | `diagnose_data(cfg, text) -> {answer, evidence, records, wiki}` |
+| `diagnose.py` | ask 진입점 | `diagnose_data(cfg, text, run_id=None) -> {answer, evidence, records, wiki, cards, terms, unknown, mode, rounds, warnings, run_id}` |
+| `vocab.py` | 어휘·정규화·연결·단위, 도메인 레지스트리 | `canon`, `load_vocabulary(vault)`, `Vocabulary.link/same/find_mentions/find_quantities/compare`, `select_domains` |
+| `kg.py` | kg.sqlite 그래프 | `sync_records`, `rebuild`, `refresh`, `load_graph`, `graph_data`, `status` |
+| `research_agent.py` | 그래프 리서치 에이전트 | `research(cfg, question, run_id)`, 그래프 도구 `tool_*`, `verify` |
+| `trace.py` | 실행 기록 | `start`, `event`, `finish`, `list_runs`, `get_run` |
 | `feedback.py` | 해결 여부·실제 원인 기록 | `run_feedback(cfg, id, resolved, cause, note)` |
 | `seed.py` | 합성 데모 데이터 | `run_seed(cfg, n)` |
 | `server.py` | FastAPI 웹 서버, 배포 모드 | `create_app(cfg, deploy)`, `run_serve()` |
@@ -197,9 +200,11 @@ required_parameters: [챔버 온도, 압력]   # 연구실이 반드시 기록�
 ### 6.2 문제 질문 (`/ask/:sid`)
 
 ```
-POST /api/ask → retrieve: 전체 레코드 카탈로그(한 줄 요약 + 해결 상태) + 위키 목록을 LLM에 넘겨 관련 항목 선택
-             → diagnose_data: 선택된 사례·위키 원문을 근거로 답변 (유사 사례 → 원인 후보 → 확인 순서)
-             → evidence 라벨: records(기록 근거) | wiki(위키만) | none(일반 지식)
+POST /api/ask {text, run_id?} → research_agent.research:
+  최신화(mtime) → 용어 연결(정규식, LLM 0회) → 그래프 도구(사례·원인·관계·스펙·위키·후속) → 증거 카드
+  → 품질 평가 → 미달이면 질문 재구성(Claude 1회) → 재검색
+  → 답변(Claude, 카드 id 인용) → 출처 검증(코드, 수리 1회)
+  → evidence: records | knowledge | web | none, mode: seen | partial | unseen
 ```
 
 ### 6.3 후속 실험·피드백
@@ -365,7 +370,7 @@ CLI 명령: `log`, `ask`, `absorb`(위키 재편찬), `feedback <id> --resolved 
 
 | 항목 | 현재 | 확장 시점 |
 |---|---|---|
-| 검색 | 질의마다 전체 카탈로그를 LLM에 전달 | 레코드가 수백 건을 넘으면 색인이나 벡터 계층 추가 |
+| 검색 | 질의마다 그래프를 메모리 인접 리스트로 읽는다 | 엣지가 수만 개를 넘으면 버전별 캐시 |
 | 사용량 카운트 | read-then-write라 근사값 | 정확해야 하면 Postgres RPC increment |
 | 저장 멱등 | 서버 메모리 캐시라 재시작하면 리셋 | 문제 되면 DB 기반으로 |
 | 대화 세션 | 브라우저 localStorage | 기기 간 동기화가 필요하면 서버 저장 |
