@@ -1,0 +1,57 @@
+---
+id: 2026-09-29_suzuki-miyaura-coupling-034
+date: '2026-09-29'
+title: XPhos Pd G3 110°C 180s
+experiment_type: Suzuki-Miyaura coupling
+objective: 'Suzuki-Miyaura coupling in flow: 3-bromoquinoline with 3,5-dimethylisoxazole-4-boronic
+  acid pinacol ester'
+equipment:
+- flow reactor
+materials:
+- XPhos Pd G3
+- 3-bromoquinoline
+- 3,5-dimethylisoxazole-4-boronic acid pinacol ester
+- DBU
+- THF
+- water
+parameters:
+- name: temperature
+  value: 110 °C
+  controllable: true
+- name: residence time
+  value: 180 s
+  controllable: true
+- name: catalyst loading
+  value: 1.2 mol%
+  controllable: true
+- name: catalyst
+  value: XPhos Pd G3
+  controllable: true
+results: yield 51.2 %, TON 42.7
+symptom:
+  category: low_value
+  description: 수율 또는 TON 목표 미달 (목표 수율 78.67 %, TON 65.56)
+suspected_causes: []
+actions_taken: []
+notes: At 110 °C and 1.20 mol% XPhos Pd G3, reducing residence time to 180 s may preserve
+  or improve performance versus 300 s by limiting prolonged exposure.
+references: []
+resolution:
+  resolved: false
+  actual_cause: null
+  note: ''
+followup_of: 2026-09-29_suzuki-miyaura-coupling-033
+needs_review: false
+---
+
+## 원문 로그
+
+At 110 °C and 1.20 mol% XPhos Pd G3, reducing residence time to 180 s may preserve or improve performance versus 300 s by limiting prolonged exposure.
+
+결과: yield 51.2 %, TON 42.7
+
+출처: labgene pilot-02 product-r1-e001:a005
+
+## 정리
+
+XPhos Pd G3 110°C 180s 조건에서 yield 51.2 %, TON 42.7. 목표 미달.
