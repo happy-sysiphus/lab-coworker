@@ -36,6 +36,27 @@ def _utf8_console():
             pass  # 콘솔 인코딩 조정 실패는 치명적이지 않음
 
 
+def _run_ontology(cfg, action: str, ids: list[str]) -> None:
+    from .config import load_vault_config
+    from .vocab import active_domain, load_domains, select_domains
+    if action == "use":
+        try:
+            notice = select_domains(cfg.vault, ids)
+        except ValueError as e:
+            raise RuntimeError(str(e)) from None
+        print(f"선택한 도메인: {', '.join(ids)}")
+        if notice:
+            print(notice)
+        return
+    chosen = set(load_vault_config(cfg.vault).domains)
+    reg = load_domains()
+    for d in reg["domains"]:
+        mark = "*" if d["id"] in chosen else " "
+        state = "실제 진행" if d["status"] == "active" else "준비 중"
+        print(f"{mark} {d['id']}  {d['name']} ({state})")
+    print(f"실제 적재 어휘: {active_domain(reg)['vocabulary']}")
+
+
 def main(argv: list[str] | None = None) -> None:
     _utf8_console()
     p = argparse.ArgumentParser(prog="horcrux", description="연구실 실험 기록·문제 진단 CLI")
@@ -54,6 +75,9 @@ def main(argv: list[str] | None = None) -> None:
     sv.add_argument("--host", default="127.0.0.1")
     sv.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8765)))
     sub.add_parser("init", help="설정 마법사 (~/.horcrux/config.yaml 생성)")
+    on = sub.add_parser("ontology", help="연구 도메인 목록·선택")
+    on.add_argument("action", choices=["domains", "use"])
+    on.add_argument("ids", nargs="*", help="use: 고를 도메인 id들")
     args = p.parse_args(argv)
     if args.cmd == "init":
         run_init()  # cfg 로드 전 분기 — 깨진 설정파일도 init으로 복구 가능해야 함
@@ -83,6 +107,8 @@ def main(argv: list[str] | None = None) -> None:
         elif args.cmd == "seed":
             from .seed import run_seed
             run_seed(cfg, args.n)
+        elif args.cmd == "ontology":
+            _run_ontology(cfg, args.action, args.ids)
         elif args.cmd == "serve":
             try:
                 from .server import run_serve

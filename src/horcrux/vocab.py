@@ -248,3 +248,40 @@ def load_vocabulary(vault: Path) -> Vocabulary:
         predicates={p["name"]: p for p in common.get("predicates", [])},
         aliases=[a for a in overlay.get("aliases") or [] if isinstance(a, dict)],
         claims=claims, version=str(common.get("version", "")), warnings=warnings)
+
+
+# ---------------------------------------------------------------- 도메인 레지스트리 (시연 범위)
+NOTICE = "시연에서는 실험한 재료·공정·화학 온톨로지로 진행합니다."
+_DOMAINS_ENTRY = re.compile(r"(?m)^domains:.*(?:\n(?:[ \t]+|-).*)*\n?")   # 최상위 domains 한 줄 또는 아래 목록
+
+
+def load_domains() -> dict:
+    return _read_yaml(PKG_ONTOLOGY / "domains.yaml")
+
+
+def active_domain(reg: dict | None = None) -> dict:
+    reg = reg or load_domains()
+    return next(d for d in reg["domains"] if d["status"] == "active")
+
+
+def domain_notice(selected: list[str], reg: dict | None = None) -> str | None:
+    """선택에 showcase 도메인이 있거나 active 도메인이 빠져 있으면 시연 범위 안내를 돌려준다."""
+    active = active_domain(reg)["id"]
+    if active not in selected or any(s != active for s in selected):
+        return NOTICE
+    return None
+
+
+def select_domains(vault: Path, ids: list[str]) -> str | None:
+    """선택을 볼트 config.yaml에 기록한다. 실제 적재 어휘는 바뀌지 않는다(시연 범위)."""
+    reg = load_domains()
+    known = {d["id"] for d in reg["domains"]}
+    bad = [i for i in ids if i not in known]
+    if bad or not ids:
+        raise ValueError(f"알 수 없는 도메인: {', '.join(bad) or '(선택 없음)'}")
+    ids = list(dict.fromkeys(ids))
+    p = Path(vault) / "config.yaml"
+    # 손으로 쓰는 파일이다 — 다른 항목·주석은 그대로 두고 domains 항목만 갈아 끼운다
+    text = _DOMAINS_ENTRY.sub("", p.read_text(encoding="utf-8") if p.exists() else "").rstrip("\n")
+    write_atomic(p, (text + "\n" if text else "") + f"domains: [{', '.join(ids)}]\n")
+    return domain_notice(ids, reg)

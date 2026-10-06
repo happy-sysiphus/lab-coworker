@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -59,6 +59,7 @@ GATEABLE_FIELDS = ["objective", "parameters", "results", "symptom", "actions_tak
 class VaultConfig:
     required_fields: list[str]
     required_parameters: list[str]
+    domains: list[str] = field(default_factory=list)   # 도메인 선택 (시연 범위 — 실제 어휘는 바뀌지 않는다)
 
 
 def load_vault_config(vault: Path) -> VaultConfig:
@@ -72,4 +73,5 @@ def load_vault_config(vault: Path) -> VaultConfig:
     return VaultConfig(
         required_fields=list(rf) if rf is not None else list(GATEABLE_FIELDS),
         required_parameters=list(rp) if rp is not None else [],
+        domains=list(data.get("domains") or []),
     )

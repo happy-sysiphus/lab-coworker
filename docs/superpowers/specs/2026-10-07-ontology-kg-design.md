@@ -586,7 +586,7 @@ experiment 노드의 라벨은 기존 화면 규칙(`title || objective || exper
 - 여러 도메인을 함께 고를 수 있다. 선택은 볼트 `config.yaml`의 `domains`에 기록한다.
 - 로더는 선택과 무관하게 active 도메인의 어휘(`suzuki-flow-v1` 변환본)만 적재한다. `# ponytail:` 시연 범위 — showcase 도메인에 어휘가 생기면 로더가 선택을 따르게 바꾼다.
 - 선택에 showcase 도메인이 있거나 재료·공정·화학이 빠져 있으면 화면에 안내를 띄운다: "시연에서는 실험한 재료·공정·화학 온톨로지로 진행합니다."
-- 고르는 곳: 배포 모드는 연구실 생성 직후 온보딩 단계(관리자), 두 모드 모두 설정 화면의 "연구 도메인" 섹션(배포 모드는 관리자만 변경), 로컬은 `horcrux init`도 묻는다. CLI는 `horcrux ontology domains`(목록), `horcrux ontology use <id>...`(선택).
+- 고르는 곳: 배포 모드는 연구실 생성 직후 온보딩 단계(관리자), 두 모드 모두 설정 화면의 "연구 도메인" 섹션(배포 모드는 관리자만 변경). CLI는 `horcrux ontology domains`(목록), `horcrux ontology use <id>...`(선택).
 - 도메인 카드를 누르면 번들 표(온톨로지, 맡는 하위 영역, 버전, 라이선스, 규모, 등급)가 펼쳐진다. active 도메인 카드에는 실제 적재 어휘의 구성(8.2)도 함께 보인다.
 
 ### 8.2 실제 어휘: 실험 온톨로지 변환
@@ -843,7 +843,7 @@ claims: []                    # 기여로 들어온 공유 클레임 (4.3 형식
 | `retrieval.py` | 삭제 (`tests/test_retrieval.py` 포함) |
 | `records.py` | `update_resolution`의 원인 대조를 vocab 동일성으로 바꾼다. 표현만 다른 같은 원인이 기각으로 기록되는 버그가 그래프의 원인 집계를 오염시키기 때문이다 |
 | `server.py` | 11의 엔드포인트, absorb 뒤 레코드 동기화, ask 확장, 기동 시 running → paused |
-| `cli.py` | `kg rebuild·status`, `manual add`, `ontology domains·use·pull·export`, `init`의 도메인 질문 |
+| `cli.py` | `kg rebuild·status`, `manual add`, `ontology domains·use·pull·export` |
 | `seed.py` | 끝에 KG 동기화 |
 
 그 밖
@@ -982,3 +982,4 @@ claims: []                    # 기여로 들어온 공유 클레임 (4.3 형식
 - 2026-10-07 초판: 대화 1~4부(구조·저장, 구축 파이프라인·승인, 리서치 에이전트·공통 온톨로지, 워크플로 뷰)와 언씬 웹 처리.
 - 2026-10-07 도메인 선택 추가: 도메인은 모두 고를 수 있고 실제 어휘는 실험 온톨로지 `suzuki-flow-v1`로 한정(사용자 지시, 2026-09-28 결정과 같음). 이에 따라 ALD 중심 시드 150개 신규 작성을 취소하고, 술어를 실험 온톨로지의 6개와 `spec_range`로 바꿨다(이전 초안의 saturates·optimum_window·no_effect·causes_defect·uses 제거). `label_ko`는 표시 전용으로 바꾸고 예시를 실험 어휘 기준으로 고쳤다.
 - 2026-10-07 전시 재생 추가: 워크플로 뷰에 하네스 본실험 v1(`artifacts/pilot-02`)을 일반 LLM과 LAB GENE 두 줄로 재생하는 탭을 넣었다. 검색 내부는 백엔드 세부라 표시하지 않는다(사용자 결정). 시연 볼트는 합성 로그 대신 본실험 v1의 실험 54건을 가져와 채운다. 도메인 레지스트리의 `demo_scenarios`는 뺐다.
+- 2026-10-07 M1 계획: 도메인 선택은 `horcrux ontology use`로만 받고 `horcrux init`은 바꾸지 않는다. init은 볼트 경로를 정하기 전에 돌고, 기존 init 테스트가 입력 세 개를 고정해 두었기 때문이다.
