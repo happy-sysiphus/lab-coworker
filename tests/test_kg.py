@@ -138,3 +138,46 @@ def test_corrupt_kg_sqlite_is_recreated(tmp_path):
     out = kg.refresh(tmp_path)
     assert (out["mode"], out["records"]) == ("rebuild", 1)
     assert ("USES_EQUIPMENT", "lg:flow_reactor") in _edges(tmp_path, "r1")
+
+
+def _doc_with_chunk(vault, text="Keep the flow reactor below 110 °C. Use THF as solvent.", cid="man-x#1"):
+    with kg.db(vault) as conn:
+        conn.execute("insert into doc(doc_id, kind, title, source, sha256, pages, page_range, status, error, created_at) "
+                     "values('man-x','manual','Flow manual','x.pdf','h',2,'1-2','done',null,0)")
+        conn.execute("insert into chunk(chunk_id, doc_id, page, seq, text, status, rounds, error) "
+                     "values(?,?,?,?,?,?,?,?)", (cid, "man-x", 1, 1, text, "done", 0, None))
+
+
+def test_passages_become_nodes_with_mentions(tmp_path):
+    _doc_with_chunk(tmp_path)
+    with kg.db(tmp_path) as conn:
+        conn.execute("insert into chunk(chunk_id, doc_id, page, seq, text, status, rounds, error) "
+                     "values('man-x#2','man-x',2,2,'nothing relevant','done',0,null)")
+    out = kg.rebuild(tmp_path)
+    assert out["passages"] == 2
+    g = kg.load_graph(tmp_path)
+    assert g.nodes["psg:man-x#1"]["kind"] == "passage" and g.nodes["psg:man-x#1"]["label"].startswith("Flow manual p.1")
+    assert {d for r, d, _ in g.out["psg:man-x#1"] if r == "MENTIONS"} == {"lg:flow_reactor", "CHEBI:26911", "CHEBI:46787"}   # reactor, THF, solvent
+    assert "psg:man-x#2" in g.nodes                      # 멘션이 없어도 원문 노드는 남는다
+
+
+def test_schema_bump_keeps_documents_and_queue(tmp_path):
+    _doc_with_chunk(tmp_path)
+    with kg.db(tmp_path) as conn:
+        conn.execute("insert into question(qid, kind, tab, status) values('q1','relation','relation','open')")
+        conn.execute("update meta set value=? where key='schema_version'", ('"0"',))
+    with kg.db(tmp_path) as conn:
+        assert conn.execute("select count(*) from doc").fetchone()[0] == 1
+        assert conn.execute("select count(*) from question").fetchone()[0] == 1
+        assert conn.execute("select chunk_id from chunk_fts where chunk_fts match 'reactor'").fetchall() == []
+        assert kg.get_meta(conn, "schema_version") == kg.SCHEMA_VERSION
+
+
+def test_vectors_round_trip_and_cosine(tmp_path):
+    with kg.db(tmp_path) as conn:
+        kg.store_vecs(conn, "term", ["a", "b"], [[1.0, 0.0], [0.6, 0.8]], "m", 2)
+        got = kg.load_vecs(conn, "term", "m", 2)
+    assert set(got) == {"a", "b"} and abs(kg.cosine(got["a"], got["b"]) - 0.6) < 1e-6
+    with kg.db(tmp_path) as conn:
+        assert kg.load_vecs(conn, "term", "other-model", 2) == {}   # 모델·차원이 다르면 버린다
+

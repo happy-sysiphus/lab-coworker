@@ -6,7 +6,9 @@
 from __future__ import annotations
 
 import json
+import math
 import sqlite3
+from array import array
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -15,8 +17,10 @@ from pathlib import Path
 from .records import ExperimentRecord, list_records, load_record
 from .vocab import Vocabulary, canon, load_vocabulary
 
-SCHEMA_VERSION = "1"
-KEEP_TABLES = ("llm_cache", "trace_run", "trace_event")   # 스키마가 바뀌어도 지우지 않는 테이블
+SCHEMA_VERSION = "2"
+# 스키마가 바뀌어도 지우지 않는 테이블(접두사가 같은 FTS 보조 테이블 포함). 문서·청크·초안·질문은 진실에서
+# 다시 만들려면 LLM 재추출이 필요하므로 남긴다. ponytail: 재구축이 llm_cache로 초안·질문을 다시 계산하게 하면 뺀다
+KEEP_TABLES = ("llm_cache", "trace_run", "trace_event", "doc", "chunk", "vec", "item", "question")
 SYMPTOM_LABEL = {"low_value": "값이 낮음", "unstable": "불안정·재현성", "abnormal": "비정상 거동", "none": "문제 없음"}
 VOCAB_FILES = ("common.yaml", "overlay.yaml", "claims.yaml")
 LABEL_MAX = 40
@@ -28,6 +32,20 @@ create table if not exists edge(src text, rel text, dst text, props text, source
 create index if not exists edge_src on edge(src);
 create index if not exists edge_dst on edge(dst);
 create index if not exists edge_source on edge(source_kind, source_id);
+create table if not exists doc(doc_id text primary key, kind text, title text, source text, sha256 text,
+                               pages integer, page_range text, status text, error text, created_at real);
+create table if not exists chunk(chunk_id text primary key, doc_id text, page integer, seq integer, text text,
+                                 status text, rounds integer default 0, error text);
+create virtual table if not exists chunk_fts using fts5(chunk_id unindexed, doc_id unindexed, text);
+create table if not exists vec(id text, kind text, model text, dims integer, v blob, primary key (id, kind));
+create table if not exists item(item_id text primary key, kind text, source_kind text, source_id text, payload text,
+                                status text, origin text, gate text, model text, prompt_sha text, reviewer text,
+                                reviewed_at real, reason_code text, created_at real);
+create table if not exists question(qid text primary key, kind text, tab text, group_key text, item_ids text,
+                                    text text, recommended text, options text, context text, priority integer,
+                                    count integer default 1, status text, answer text, answered_at real,
+                                    created_at real);
+create table if not exists llm_cache(key text primary key, output text, model text, prompt_ver text, created_at real);
 create table if not exists trace_run(run_id text primary key, kind text, title text, status text,
                                      started_at real, ended_at real);
 create table if not exists trace_event(run_id text, seq integer, ts real, stage text, status text,
@@ -53,7 +71,8 @@ def _open(vault: Path) -> sqlite3.Connection:
             # 파생물이므로 스키마가 바뀌면 지우고 다시 만든다. LLM 캐시와 실행 기록만 남긴다
             names = [r[0] for r in conn.execute("select name from sqlite_master where type='table'")]
             for name in names:
-                if name not in KEEP_TABLES and not name.startswith("sqlite_"):
+                keep = any(name == k or name.startswith(k + "_") for k in KEEP_TABLES)
+                if not keep and not name.startswith("sqlite_"):
                     conn.execute(f'drop table "{name}"')
             conn.executescript(_DDL)
             conn.execute("insert or replace into meta values('schema_version', ?)", (json.dumps(SCHEMA_VERSION),))
@@ -213,8 +232,49 @@ def sync_claims(conn, vocab: Vocabulary) -> int:
 
 
 def _prune(conn) -> None:
-    conn.execute("delete from node where kind!='experiment' and node_id not in (select src from edge) "
+    conn.execute("delete from node where kind not in ('experiment', 'passage') and node_id not in (select src from edge) "
                   "and node_id not in (select dst from edge)")
+
+
+def sync_passages(conn, vocab: Vocabulary, doc_id: str | None = None) -> int:
+    """매뉴얼·웹 청크를 passage 노드로 두고 승인 용어 정규식 스캔으로 MENTIONS 엣지를 잇는다(LLM 0회)."""
+    titles = {r[0]: r[1] for r in conn.execute("select doc_id, title from doc")}
+    rows = conn.execute("select chunk_id, doc_id, page, text from chunk" + (" where doc_id=?" if doc_id else ""),
+                        (doc_id,) if doc_id else ()).fetchall()
+    for cid, did, page, text in rows:
+        conn.execute("delete from edge where source_kind='mention' and source_id=?", (cid,))
+        nid = f"psg:{cid}"
+        _upsert_node(conn, nid, "passage", _short(f"{titles.get(did, did)} p.{page}"),
+                     props={"chunk_id": cid, "doc_id": did, "page": page})
+        seen: set[str] = set()
+        for *_, tid in vocab.find_mentions(text or ""):
+            if tid not in seen:
+                seen.add(tid)
+                conn.execute("insert into edge values(?,?,?,?,?,?)",
+                             (nid, "MENTIONS", _term_node(conn, vocab, tid), "{}", "mention", cid))
+    return len(rows)
+
+
+def store_vecs(conn, kind: str, ids: list[str], vectors: list[list[float]], model: str, dims: int) -> None:
+    conn.executemany("insert or replace into vec values(?,?,?,?,?)",
+                     [(i, kind, model, dims, array("f", v).tobytes()) for i, v in zip(ids, vectors)])
+
+
+def load_vecs(conn, kind: str, model: str, dims: int) -> dict[str, list[float]]:
+    """모델·차원이 지금 임베더와 같은 벡터만 읽는다 — 다르면 다시 계산할 대상이다."""
+    out = {}
+    for i, blob in conn.execute("select id, v from vec where kind=? and model=? and dims=?", (kind, model, dims)):
+        a = array("f")
+        a.frombytes(blob)
+        out[i] = list(a)
+    return out
+
+
+def cosine(a: list[float], b: list[float]) -> float:
+    """ponytail: 순수 파이썬 전수 비교. 벡터가 수만 개를 넘으면 numpy나 ANN 색인을 검토한다"""
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(x * x for x in b))
+    return sum(x * y for x, y in zip(a, b)) / (na * nb) if na and nb else 0.0
 
 
 def _vocab_mtimes(vault: Path) -> dict:
@@ -274,7 +334,8 @@ def rebuild(vault: Path) -> dict:
         conn.execute("delete from edge")
         conn.execute("delete from node")
         claims = sync_claims(conn, vocab)
-    return {**sync_records(vault, None, vocab), "claims": claims}
+        passages = sync_passages(conn, vocab)
+    return {**sync_records(vault, None, vocab), "claims": claims, "passages": passages}
 
 
 def refresh(vault: Path) -> dict:
