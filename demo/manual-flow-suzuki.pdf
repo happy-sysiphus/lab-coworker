@@ -1,0 +1,69 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R 10 0 R] /Count 4 >>
+endobj
+3 0 obj
+<< /Length 726 >>
+stream
+BT /F1 10 Tf 13 TL 60 750 Td (Demo Flow Reactor Operating Notes - synthetic document for the LAB GENE demonstration) Tj T* (Page 1) Tj T* () Tj T* (1. Scope) Tj T* (These notes describe how to run palladium-catalysed Suzuki-Miyaura coupling in the droplet) Tj T* (flow reactor. They are a synthetic document written for a demonstration and are not a vendor) Tj T* (manual.) Tj T* () Tj T* (2. Operating limits) Tj T* (The flow reactor temperature must stay between 30 and 110 °C.) Tj T* (The residence time in the flow reactor must stay between 60 and 600 s.) Tj T* (Catalyst loading must stay between 0.5 and 2.5 mol% to protect the downstream filter.) Tj T* (System pressure must not exceed 17 bar during start-up.) Tj T* ET
+endstream
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 3 0 R >>
+endobj
+5 0 obj
+<< /Length 778 >>
+stream
+BT /F1 10 Tf 13 TL 60 750 Td (Demo Flow Reactor Operating Notes - synthetic document for the LAB GENE demonstration) Tj T* (Page 2) Tj T* () Tj T* (3. Chemistry notes) Tj T* (Suzuki-Miyaura coupling requires a base such as DBU.) Tj T* (Higher temperature promotes protodeboronation of heteroaryl boronic acids.) Tj T* (Protodeboronation decreases reaction yield because the boronic acid is consumed before) Tj T* (transmetallation.) Tj T* (Longer residence time increases conversion until the catalyst deactivates.) Tj T* (Carbon-carbon homocoupling reaction competes with Suzuki-Miyaura coupling when oxygen enters) Tj T* (the feed.) Tj T* () Tj T* (4. Recommended window) Tj T* (For heteroaryl boronic acid pinacol esters the recommended temperature is 60 to 100 °C.) Tj T* ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Length 658 >>
+stream
+BT /F1 10 Tf 13 TL 60 750 Td (Demo Flow Reactor Operating Notes - synthetic document for the LAB GENE demonstration) Tj T* (Page 3) Tj T* () Tj T* (5. Precatalysts) Tj T* (XPhos Pd G3 dissolves quickly in THF and gives the most reproducible activation in this) Tj T* (reactor.) Tj T* (SPhos Pd G3 is a good first choice for heteroaryl bromides.) Tj T* (XPhos Pd G3 and SPhos Pd G3 should be stored under nitrogen and weighed fresh for each) Tj T* (campaign.) Tj T* (Mesylate precatalysts tolerate water better than chloride precatalysts.) Tj T* () Tj T* (6. Solvent) Tj T* (THF/water 5:1 is the standard solvent mixture. Degas the water before use.) Tj T* ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 7 0 R >>
+endobj
+9 0 obj
+<< /Length 494 >>
+stream
+BT /F1 10 Tf 13 TL 60 750 Td (Demo Flow Reactor Operating Notes - synthetic document for the LAB GENE demonstration) Tj T* (Page 4) Tj T* () Tj T* (7. Maintenance) Tj T* (Flush the reactor with clean THF after every campaign and inspect the droplet generator) Tj T* (weekly.) Tj T* (Replace the inlet filter when the pressure drop rises above the value recorded at) Tj T* (installation.) Tj T* (Record every deviation in the lab notebook so that the knowledge graph can learn from it.) Tj T* ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 9 0 R >>
+endobj
+11 0 obj
+<< /Title (Demo Flow Reactor Operating Notes \(synthetic\)) >>
+endobj
+12 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+xref
+0 13
+0000000000 65535 f 
+0000000009 00000 n 
+0000000106 00000 n 
+0000000182 00000 n 
+0000000959 00000 n 
+0000001085 00000 n 
+0000001914 00000 n 
+0000002040 00000 n 
+0000002749 00000 n 
+0000002875 00000 n 
+0000003420 00000 n 
+0000003547 00000 n 
+0000003626 00000 n 
+trailer
+<< /Size 13 /Root 12 0 R /Info 11 0 R >>
+startxref
+3676
+%%EOF

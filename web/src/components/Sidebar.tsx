@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Ellipsis, NotebookText, Pencil, Pin, PinOff, Plus, Settings, Sparkles, Trash2, Network, Workflow, Library } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Ellipsis, NotebookText, Pencil, Pin, PinOff, Plus, Settings, Sparkles, Trash2, Network, Workflow, Library, ClipboardCheck } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { api } from "../api";
 import { useAuth } from "../auth";
 import Logo from "./Logo";
 import { useNav } from "../nav";
@@ -17,6 +18,7 @@ const LINKS = [
   { to: "/", icon: Sparkles, label: "AI 워크스페이스", match: (p: string) => p === "/" },
   { to: "/notes", icon: NotebookText, label: "연구노트", match: (p: string) => p.startsWith("/notes") },
   { to: "/graph", icon: Network, label: "그래프뷰", match: (p: string) => p.startsWith("/graph") },
+  { to: "/review", icon: ClipboardCheck, label: "검토", match: (p: string) => p.startsWith("/review") },
   { to: "/flow", icon: Workflow, label: "워크플로", match: (p: string) => p.startsWith("/flow") },
   { to: "/domains", icon: Library, label: "연구 도메인", match: (p: string) => p.startsWith("/domains") },
 ];
@@ -65,6 +67,14 @@ export default function Sidebar() {
     ? [...LINKS, { to: "/settings", icon: Settings, label: "연구실 설정",
                    match: (p: string) => p.startsWith("/settings") }]
     : LINKS;
+  // 검토 메뉴의 미답 질문 수 — 구축은 백그라운드라 주기적으로 읽는다
+  const [openQ, setOpenQ] = useState(0);
+  useEffect(() => {
+    const load = () => api.kgStatus().then((s) => setOpenQ(s.open)).catch(() => {});
+    load();
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
+  }, []);
   const sessions = listSessions();
   const today = new Date().toDateString();
   const isToday = (s: Session) => new Date(s.createdAt).toDateString() === today;
@@ -77,6 +87,9 @@ export default function Sidebar() {
           : (l.match(loc.pathname) ? "bg-blue-50 font-medium text-blue-700" : "text-slate-700 hover:bg-slate-100")}`}>
         <l.icon aria-hidden strokeWidth={2} size={20} />
         {l.label}
+        {l.to === "/review" && openQ > 0 && (
+          <span className="ml-auto rounded-full bg-red-500 px-1.5 text-xs font-semibold text-white">{openQ}</span>
+        )}
       </Link>
     ));
 

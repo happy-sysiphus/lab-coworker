@@ -1,5 +1,5 @@
 import type {
-  AppConfig, AskResult, AuthConfig, DomainsInfo, KgGraph, Lab, LabMe, ParsedLog, RecordDetail, RecordMeta, Reference,
+  AppConfig, AskResult, AuthConfig, AutoItem, DomainsInfo, KgGraph, KgStatus, Question, Lab, LabMe, ParsedLog, RecordDetail, RecordMeta, Reference,
 } from "./types";
 import type { TraceEvent, TraceRun } from "./flow";
 
@@ -28,6 +28,21 @@ async function http<T>(method: string, url: string, body?: unknown): Promise<T> 
   return res.json() as Promise<T>;
 }
 
+// PDF 바이트를 그대로 올린다 (python-multipart 없이)
+async function upload<T>(url: string, file: Blob): Promise<T> {
+  const token = await getToken();
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/pdf", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: file,
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error((detail as { detail?: string }).detail ?? `업로드 실패 (${res.status})`);
+  }
+  return res.json() as Promise<T>;
+}
+
 export const api = {
   parse: (text: string) =>
     http<{ parsed: ParsedLog; gaps: string[] }>("POST", "/api/parse", { text }),
@@ -47,6 +62,18 @@ export const api = {
   domains: () => http<DomainsInfo>("GET", "/api/ontology/domains"),
   setDomains: (domains: string[]) =>
     http<{ domains: string[]; notice: string | null; run_id: string }>("PUT", "/api/ontology/domains", { domains }),
+  uploadManual: (file: File, pages?: string) =>
+    upload<{ doc_id: string; created: boolean; run_id: string }>(
+      `/api/manuals/${encodeURIComponent(file.name)}${pages ? `?pages=${encodeURIComponent(pages)}` : ""}`, file),
+  kgStatus: () => http<KgStatus>("GET", "/api/kg/status"),
+  kgBuild: (docId?: string) => http<{ run_id: string }>("POST", "/api/kg/build", { doc_id: docId ?? null }),
+  questions: (tab: string) => http<{ questions: Question[]; auto?: AutoItem[] }>("GET", `/api/kg/questions?tab=${tab}`),
+  question: (qid: string) => http<Question>("GET", `/api/kg/questions/${encodeURIComponent(qid)}`),
+  answer: (qid: string, action: string, reasonCode?: string, edit?: Record<string, unknown>) =>
+    http<{ status: string; verdict?: string; wrote?: string[]; run_id?: string }>(
+      "POST", `/api/kg/questions/${encodeURIComponent(qid)}/answer`, { action, reason_code: reasonCode ?? null, edit: edit ?? null }),
+  bulkAccept: (qids: string[]) => http<{ answered: unknown[] }>("POST", "/api/kg/questions/bulk-accept", { qids }),
+  revoke: (itemId: string) => http<{ removed: boolean }>("POST", `/api/kg/items/${encodeURIComponent(itemId)}/revoke`),
   flowRuns: () => http<{ runs: TraceRun[] }>("GET", "/api/flow/runs"),
   flowRun: (id: string, after = 0) =>
     http<{ run: TraceRun; events: TraceEvent[] }>("GET", `/api/flow/runs/${encodeURIComponent(id)}?after=${after}`),

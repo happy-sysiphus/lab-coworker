@@ -14,6 +14,7 @@ import Login from "./pages/Login";
 import Notes from "./pages/Notes";
 import Onboarding from "./pages/Onboarding";
 import Preview from "./pages/Preview";
+import Review from "./pages/Review";
 import Settings from "./pages/Settings";
 
 // 같은 route 안에서 :sid만 바뀌면 React가 컴포넌트를 remount하지 않아 훅 내부 세션 상태와
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="/graph" element={<Graph />} />
             <Route path="/flow" element={<Flow />} />
             <Route path="/domains" element={<Domains />} />
+            <Route path="/review" element={<Review />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/notes/:id" element={<Notes />} />
             <Route path="/followup/:sid" element={<BySid><FollowUp /></BySid>} />

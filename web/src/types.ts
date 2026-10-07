@@ -134,3 +134,23 @@ export interface Session {
   askResult?: AskResult;
   history?: ConvoSnapshot[]; // n번째 = n+1번째 사용자 발화 직전 상태 (초기 로그 제외)
 }
+export interface KgDoc {
+  doc_id: string; kind: string; title: string; status: string; error: string | null;
+  created_at: number; chunks: number; done: number;
+}
+export interface KgStatus {
+  docs: KgDoc[]; tabs: Record<string, { open: number; answered: number }>; open: number; building: boolean;
+}
+export interface SourceCard {
+  kind: "manual" | "web" | "record" | "none"; title?: string; page?: number; text?: string; quote?: string;
+  url?: string | null; records?: string[]; chunk_id?: string;
+}
+export interface Question {
+  qid: string; kind: string; tab: string; group_key: string; item_ids: string[]; text: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  recommended: any; options: string[]; context: any; priority: number; count: number; status: string;
+  created_at: number; source?: SourceCard;
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface AutoItem { item_id: string; payload: any; created_at: number }
+
