@@ -200,6 +200,13 @@ class Vocabulary:
         q = self.find_quantities(text)
         return {k: q[0][k] for k in ("lo", "hi", "unit")} if q else None
 
+    def unit_id(self, text: str) -> str | None:
+        """단위 표기(°C, min, mol% …)나 단위 id → 단위 id. 모르면 None."""
+        if text in self._units:
+            return text
+        key = str(text).strip().casefold()
+        return next((u["id"] for syn, u in self._unit_syn if syn.casefold() == key), None)
+
     def unit_symbol(self, unit_id: str) -> str:
         u = self._units.get(unit_id)
         return (u.get("symbol") or u["label"]) if u else unit_id

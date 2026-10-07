@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import urllib.request
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -128,3 +129,37 @@ def generate_parsed(cfg: Config, system: str, user: str, schema: type[BaseModel]
         # CLI는 스키마 강제가 없어 파싱 실패가 일상적 — 어댑터에서 1회 재생성 (모든 호출부 커버)
         raw = generate(cfg, system + instr, user)
         return schema.model_validate_json(_extract_json(raw))
+
+
+# ---------------------------------------------------------------- 임베딩 (온톨로지 구축 단계 전용)
+EMBED_MODEL = "gemini-embedding-2"
+EMBED_DIMS = 3072
+_EMBED_URL = "https://generativelanguage.googleapis.com/v1beta/models/{m}:batchEmbedContents"
+
+
+def embed(texts: list[str], kind: str) -> list[list[float]] | None:
+    """하네스 GeminiEmbedder 이식(표준 라이브러리 HTTP). 키가 없거나 실패하면 None — 호출자는 대체 경로로 간다.
+
+    질의는 'task: search result | query: …', 문서는 'title: none | text: …' 형식이다. 요청당 100개."""
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        return None
+    out: list[list[float]] = []
+    for i in range(0, len(texts), 100):
+        part = [f"task: search result | query: {t}" if kind == "query" else f"title: none | text: {t}"
+                for t in texts[i:i + 100]]
+        body = {"requests": [{"model": f"models/{EMBED_MODEL}", "content": {"parts": [{"text": t}]},
+                              "output_dimensionality": EMBED_DIMS} for t in part]}
+        req = urllib.request.Request(_EMBED_URL.format(m=EMBED_MODEL), data=json.dumps(body).encode("utf-8"),
+                                     headers={"Content-Type": "application/json", "x-goog-api-key": key})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                data = json.loads(r.read().decode("utf-8"))
+        except Exception as e:
+            print(f"(임베딩 실패 — 대체 경로로 진행: {e})")
+            return None
+        vecs = [e.get("values") for e in data.get("embeddings") or [] if isinstance(e, dict)]
+        if len(vecs) != len(part) or not all(isinstance(v, list) and v for v in vecs):
+            return None
+        out += [[float(x) for x in v] for v in vecs]
+    return out
