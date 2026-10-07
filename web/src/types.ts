@@ -80,7 +80,20 @@ export interface KgLink { source: string; target: string; rel: string; kind: str
 export interface KgGraph { nodes: KgNode[]; links: KgLink[] }
 export interface AppConfig {
   required_fields: string[]; required_parameters: string[];
-  provider: string; vault: string;
+  provider: string; vault: string; domains?: string[];
+}
+export interface DomainBundle { ontology: string; role: string }
+export interface Domain {
+  id: string; name: string; status: "active" | "showcase"; vocabulary?: string; description?: string;
+  bundle: DomainBundle[];
+}
+export interface OntologyMeta {
+  name: string; version?: string | null; license?: string | null; size?: string | null;
+  usability?: string | null; adoption?: string | null; url?: string | null;
+}
+export interface DomainsInfo {
+  domains: Domain[]; ontologies: Record<string, OntologyMeta>; selected: string[]; active: string;
+  vocabulary: string; vocab: { terms: number; units: number; predicates: number; by_kind: Record<string, number> };
 }
 
 export interface AuthConfig {

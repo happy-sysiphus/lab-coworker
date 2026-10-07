@@ -21,6 +21,7 @@ from .diagnose import diagnose_data
 from .feedback import run_feedback
 from .ingest import ParsedLog, missing_required, parse_log, save_unparsed, to_record
 from .labs import LabsDB
+from .vocab import active_domain, load_domains, load_vocabulary, select_domains
 from .records import (
     Parameter, Reference, SuspectedCause, Symptom,
     list_records, load_record, record_path, save_record, write_md,
@@ -89,6 +90,10 @@ class RecordUpdateIn(BaseModel):
 
 class RawIn(BaseModel):
     text: str
+
+
+class DomainsIn(BaseModel):
+    domains: list[str]
 
 
 class AskIn(BaseModel):
@@ -361,6 +366,46 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
             trace.finish(c.vault, run_id)
         return out
 
+    @app.get("/api/ontology/domains")
+    def api_domains(ctx=Depends(require_lab)):
+        c = lab_cfg(ctx)
+        reg = load_domains()
+        act = active_domain(reg)
+        voc = load_vocabulary(c.vault)
+        kinds: dict[str, int] = {}
+        for t in voc.terms.values():
+            kinds[t["kind"]] = kinds.get(t["kind"], 0) + 1
+        return {"domains": reg["domains"], "ontologies": reg.get("ontologies", {}),
+                "selected": load_vault_config(c.vault).domains, "active": act["id"],
+                "vocabulary": act.get("vocabulary"),
+                "vocab": {"terms": len(voc.terms), "units": len(voc.units), "predicates": len(voc.predicates),
+                          "by_kind": kinds}}
+
+    @app.put("/api/ontology/domains")
+    def api_set_domains(inp: DomainsIn, ctx=Depends(require_lab)):
+        if ctx is not None and ctx.role != "admin":
+            raise HTTPException(403, "연구 도메인은 관리자만 바꿀 수 있습니다")
+        c = lab_cfg(ctx)
+        reg = load_domains()
+        names = {d["id"]: d["name"] for d in reg["domains"]}
+        with lab_lock(ctx):
+            try:
+                notice = select_domains(c.vault, inp.domains)
+            except ValueError as e:
+                raise HTTPException(400, str(e)) from None
+            chosen = load_vault_config(c.vault).domains
+            act = active_domain(reg)
+            n = len(load_vocabulary(c.vault).terms)
+            run_id = trace.start(c.vault, "ontology", "도메인·온톨로지 선택")
+            trace.event(c.vault, run_id, "common.select", "ok",
+                        "선택: " + ", ".join(names.get(i, i) for i in chosen), {"domains": chosen})
+            trace.event(c.vault, run_id, "common.pull", "info" if notice else "ok",
+                        f"실제 적재 어휘 {act.get('vocabulary')} · 용어 {n}개" + (" (시연 범위)" if notice else ""),
+                        {"vocabulary": act.get("vocabulary"), "terms": n})
+            trace.event(c.vault, run_id, "p2.context", "ok", "공통 어휘를 연결 기준과 추출 문맥으로 사용")
+            trace.finish(c.vault, run_id)
+        return {"domains": chosen, "notice": notice, "run_id": run_id}
+
     @app.get("/api/flow/runs")
     def api_flow_runs(limit: int = 30, ctx=Depends(require_lab)):
         return {"runs": trace.list_runs(lab_cfg(ctx).vault, limit)}
@@ -386,7 +431,7 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
         vcfg = load_vault_config(c.vault)
         return {"required_fields": vcfg.required_fields,
                 "required_parameters": vcfg.required_parameters,
-                "provider": c.provider, "vault": str(c.vault)}
+                "provider": c.provider, "vault": str(c.vault), "domains": vcfg.domains}
 
     @app.post("/api/labs")
     def api_lab_create(inp: LabIn, ctx=Depends(get_ctx)):

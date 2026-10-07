@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Send } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Library, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { api } from "../api";
 import { MobileBar } from "../nav";
 import { listSessions, newSession, saveSession } from "../store";
 
@@ -9,6 +10,11 @@ export default function Home() {
   const [mode, setMode] = useState<"log" | "ask">("log");
   const [text, setText] = useState("");
   const drafts = listSessions().filter((s) => s.kind !== "ask" && !s.saved && s.messages.length > 0);
+  // 처음 쓰는 연구실이면 연구 도메인부터 고르게 안내한다
+  const [noDomain, setNoDomain] = useState(false);
+  useEffect(() => {
+    api.config().then((c) => setNoDomain((c.domains ?? []).length === 0)).catch(() => setNoDomain(false));
+  }, []);
 
   function start(kind: "log" | "ask", preset?: string) {
     const t = (preset ?? text).trim();
@@ -24,6 +30,16 @@ export default function Home() {
     <>
     <MobileBar title="AI 워크스페이스" />
     <div className="mx-auto max-w-3xl px-5 py-10 md:px-8 md:py-16">
+      {noDomain && (
+        <button onClick={() => nav("/domains")}
+          className="mb-6 flex w-full items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-left hover:bg-blue-100">
+          <Library className="shrink-0 text-blue-600" size={22} aria-hidden />
+          <span>
+            <span className="block font-semibold text-blue-900">먼저 연구 도메인을 고르세요</span>
+            <span className="block text-sm text-blue-800">도메인에 맞는 오픈소스 온톨로지가 기록과 질의의 어휘가 됩니다.</span>
+          </span>
+        </button>
+      )}
       <h1 className="text-2xl font-bold md:text-3xl">무엇을 도와드릴까요?</h1>
       <p className="mt-2 text-sm text-slate-500 md:text-base">실험 기록, 문제 원인, 과거 사례를 자연어로 입력하면 AI가 정리합니다.</p>
 

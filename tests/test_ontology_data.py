@@ -49,3 +49,11 @@ def test_domains_registry_has_one_active_domain():
         assert d["status"] in ("active", "showcase")
         for b in d["bundle"]:
             assert b["ontology"] in reg["ontologies"], b
+
+
+def test_registry_ontology_metadata_fields():
+    reg = _load(ONT / "domains.yaml")
+    allowed = {"name", "version", "license", "size", "usability", "adoption", "url"}
+    assert all(set(v) <= allowed for v in reg["ontologies"].values())   # 쉼표가 든 값이 쪼개지지 않는다
+    assert reg["ontologies"]["PMDco"]["size"] == "약 1,400 용어"
+

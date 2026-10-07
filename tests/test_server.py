@@ -175,3 +175,19 @@ def test_feedback_run_goes_straight_to_graph(client):
     stages = [e["stage"] for e in trace.get_run(vault, run["run_id"])["events"]]
     assert stages == ["fb.feedback", "p2.store"]   # 워크플로 뷰의 "피드백 → 지식 그래프" 되먹임 선
 
+
+def test_domains_get_and_select_records_ontology_run(client):
+    from horcrux import trace
+    c, vault = client
+    got = c.get("/api/ontology/domains").json()
+    assert got["active"] == "materials-process-chem" and got["vocabulary"] == "suzuki-flow-v1"
+    assert len(got["domains"]) == 5 and got["selected"] == [] and got["vocab"]["terms"] == 49
+    assert got["ontologies"]["ChEBI"]["license"]
+    out = c.put("/api/ontology/domains", json={"domains": ["materials-process-chem", "life-science"]}).json()
+    assert out["domains"] == ["materials-process-chem", "life-science"] and out["notice"]
+    assert c.get("/api/ontology/domains").json()["selected"] == ["materials-process-chem", "life-science"]
+    assert c.get("/api/config").json()["domains"] == ["materials-process-chem", "life-science"]
+    stages = [e["stage"] for e in trace.get_run(vault, out["run_id"])["events"]]
+    assert stages == ["common.select", "common.pull", "p2.context"]
+    assert c.put("/api/ontology/domains", json={"domains": ["nope"]}).status_code == 400
+

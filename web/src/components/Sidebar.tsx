@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Ellipsis, NotebookText, Pencil, Pin, PinOff, Plus, Settings, Sparkles, Trash2, Network, Workflow } from "lucide-react";
+import { Ellipsis, NotebookText, Pencil, Pin, PinOff, Plus, Settings, Sparkles, Trash2, Network, Workflow, Library } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import Logo from "./Logo";
@@ -18,6 +18,7 @@ const LINKS = [
   { to: "/notes", icon: NotebookText, label: "연구노트", match: (p: string) => p.startsWith("/notes") },
   { to: "/graph", icon: Network, label: "그래프뷰", match: (p: string) => p.startsWith("/graph") },
   { to: "/flow", icon: Workflow, label: "워크플로", match: (p: string) => p.startsWith("/flow") },
+  { to: "/domains", icon: Library, label: "연구 도메인", match: (p: string) => p.startsWith("/domains") },
 ];
 
 export default function Sidebar() {

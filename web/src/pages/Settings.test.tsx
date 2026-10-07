@@ -1,6 +1,11 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import Settings from "./Settings";
+
+// 연구 도메인 섹션(DomainPicker)은 라우터 안에서 렌더되고 API를 부른다 — 앱과 같은 조건을 만든다
+vi.mock("../api", () => ({ api: { domains: () => new Promise(() => {}), labSettings: async () => {} } }));
+const view = () => render(<MemoryRouter><Settings /></MemoryRouter>);
 
 vi.mock("../auth", () => ({
   useAuth: () => ({
@@ -16,14 +21,14 @@ vi.mock("../auth", () => ({
 
 describe("Settings", () => {
   it("초대 코드·사용량·멤버를 렌더한다", () => {
-    render(<Settings />);
+    view();
     expect(screen.getByText("abcd1234")).toBeTruthy();
     expect(screen.getByText("3 / 200")).toBeTruthy();
     expect(screen.getByText("a@b.c")).toBeTruthy();
   });
 
   it("일일 상한은 편집할 수 없다 — 운영자 전용", () => {
-    const { container } = render(<Settings />);
+    const { container } = view();
     expect(container.querySelector('input[type="number"]')).toBeNull();
   });
 });

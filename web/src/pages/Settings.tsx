@@ -1,4 +1,5 @@
 import { useState } from "react";
+import DomainPicker from "../components/DomainPicker";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { MobileBar } from "../nav";
@@ -51,6 +52,10 @@ export default function Settings() {
       <MobileBar title="연구실 설정" />
       <div className="mx-auto max-w-2xl space-y-4 px-5 py-6 md:px-8 md:py-8">
         <h1 className="text-xl font-bold md:text-2xl">연구실 설정</h1>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="mb-3 font-semibold">연구 도메인</h2>
+          <DomainPicker />
+        </section>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="text-xs text-slate-400">연구실 이름</div>

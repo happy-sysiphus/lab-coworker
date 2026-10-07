@@ -1,5 +1,5 @@
 import type {
-  AppConfig, AskResult, AuthConfig, KgGraph, Lab, LabMe, ParsedLog, RecordDetail, RecordMeta, Reference,
+  AppConfig, AskResult, AuthConfig, DomainsInfo, KgGraph, Lab, LabMe, ParsedLog, RecordDetail, RecordMeta, Reference,
 } from "./types";
 import type { TraceEvent, TraceRun } from "./flow";
 
@@ -44,6 +44,9 @@ export const api = {
   ask: (text: string, runId?: string) =>
     http<AskResult>("POST", "/api/ask", { text, run_id: runId ?? null }),
   kgGraph: () => http<KgGraph>("GET", "/api/kg/graph"),
+  domains: () => http<DomainsInfo>("GET", "/api/ontology/domains"),
+  setDomains: (domains: string[]) =>
+    http<{ domains: string[]; notice: string | null; run_id: string }>("PUT", "/api/ontology/domains", { domains }),
   flowRuns: () => http<{ runs: TraceRun[] }>("GET", "/api/flow/runs"),
   flowRun: (id: string, after = 0) =>
     http<{ run: TraceRun; events: TraceEvent[] }>("GET", `/api/flow/runs/${encodeURIComponent(id)}?after=${after}`),
