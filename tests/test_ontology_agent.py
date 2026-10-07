@@ -210,3 +210,51 @@ def test_gates_flag_each_failure(tmp_path):
     assert g(_claim("pressure", "spec_range", "flow reactor", text, {"°C": [30, 110]}))["G3"].startswith("unlinked")
     assert g(_claim("temperature", "spec_range", "flow reactor", text, {"bar": [30, 110]}))["G4"].startswith("unit")
     assert g(_claim("THF", "increases", "reaction yield", "THF raises the yield."))["G1"] == "quote: 원문에 없는 인용"
+
+
+def test_pull_common_validates_then_replaces_and_rebuilds(kg_vault, monkeypatch):
+    import io
+    import urllib.request
+    from horcrux.vocab import PKG_ONTOLOGY
+    dst = kg_vault / "ontology" / "common.yaml"
+    before = dst.read_text(encoding="utf-8")
+    monkeypatch.setattr(urllib.request, "urlopen", lambda url, timeout: io.BytesIO(b"terms: nope"))
+    with pytest.raises(ValueError):
+        oa.pull_common(Config(vault=kg_vault), "https://x.test/common.yaml")
+    assert dst.read_text(encoding="utf-8") == before   # 검증 실패면 사본을 건드리지 않는다
+    text = (PKG_ONTOLOGY / "common.yaml").read_text(encoding="utf-8").replace("version: 2026.10.0", "version: 2026.11.0")
+    text = text.replace("terms:\n", "terms:\n  - {id: 'lab:pulled', label: pulled term, kind: material, parent: null}\n", 1)
+    monkeypatch.setattr(urllib.request, "urlopen", lambda url, timeout: io.BytesIO(text.encode("utf-8")))
+    run = trace.start(kg_vault, "ontology", "pull")
+    out = oa.pull_common(Config(vault=kg_vault), None, run)
+    assert (out["version"], out["added"], out["removed"]) == ("2026.11.0", ["lab:pulled"], [])
+    from horcrux.vocab import load_vocabulary
+    assert "lab:pulled" in load_vocabulary(kg_vault).terms   # 더 높은 version이라 동봉본으로 되돌아가지 않는다
+    assert [e["stage"] for e in trace.get_run(kg_vault, run)["events"]] == ["common.pull"]
+
+
+def test_export_contribution_leaves_out_record_derived_items(kg_vault):
+    import json
+    with kg.db(kg_vault) as conn:
+        conn.execute("insert into doc(doc_id, title, kind, source) values('man-x', 'X manual', 'manual', 'x.pdf')")
+        conn.execute("insert into question(qid, context) values('q-doc', ?)",
+                     (json.dumps({"source": {"chunk_id": "man-x#3"}}),))
+        conn.execute("insert into question(qid, context) values('q-rec', ?)",
+                     (json.dumps({"source": {"records": ["2026-09-03_b-001"]}}),))
+    (kg_vault / "ontology" / "overlay.yaml").write_text(yaml.safe_dump({
+        "terms": [{"id": "lab:from-manual", "label": "from manual", "kind": "material", "qid": "q-doc"},
+                  {"id": "lab:from-record", "label": "from record", "kind": "material", "qid": "q-rec"}],
+        "aliases": [{"surface": "XPG3", "term_id": "lg:flow_reactor", "verdict": "positive", "qid": "q-doc"},
+                    {"surface": "nope", "term_id": "lg:flow_reactor", "verdict": "negative", "qid": "q-doc"}]},
+        allow_unicode=True), encoding="utf-8")
+    doc = yaml.safe_load((kg_vault / "ontology" / "claims.yaml").read_text(encoding="utf-8"))
+    doc["claims"].append({"id": "c-rec", "subject": "lg:protodeboronation", "predicate": "decreases",
+                          "object": "lg:conversion", "sources": [{"record_id": "2026-09-01_a-001"}]})
+    (kg_vault / "ontology" / "claims.yaml").write_text(yaml.safe_dump(doc, allow_unicode=True), encoding="utf-8")
+    p = oa.export_contribution(Config(vault=kg_vault), kg_vault / "out.yaml")
+    got = yaml.safe_load(p.read_text(encoding="utf-8"))
+    assert [t["id"] for t in got["terms"]] == ["lab:from-manual"]
+    assert got["aliases"] == [{"surface": "XPG3", "term_id": "lg:flow_reactor"}]
+    assert [c["id"] for c in got["claims"]] == ["c-1", "c-2", "s-1"]
+    assert got["claims"][0]["sources"] == [{"title": "X manual", "page": 4,
+                                            "quote": "higher temperature promotes protodeboronation"}]

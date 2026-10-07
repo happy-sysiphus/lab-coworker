@@ -694,3 +694,74 @@ def pause_running(vault: Path) -> None:
     """서버 기동 시 running으로 남은 문서를 paused로 바꾼다 — '이어서'로 재개한다."""
     with kg.db(vault) as conn:
         conn.execute("update doc set status='paused' where status='running'")
+
+
+# ---------------------------------------------------------------- 공통 온톨로지 pull · 기여 export (8.4·8.5)
+COMMON_URL = "https://raw.githubusercontent.com/happy-sysiphus/lab-coworker/main/src/horcrux/ontology/common.yaml"
+
+
+def pull_common(cfg: Config, url: str | None = None, run_id: str | None = None) -> dict:
+    """원격 공통 온톨로지를 받아 YAML·형식을 검증한 뒤 볼트 사본을 원자적으로 교체하고 그래프를 다시 만든다."""
+    import urllib.request
+    import yaml
+    from .vocab import write_atomic
+    vault = Path(cfg.vault)
+    with urllib.request.urlopen(url or COMMON_URL, timeout=30) as r:
+        text = r.read().decode("utf-8")
+    doc = yaml.safe_load(text)
+    terms = doc.get("terms") if isinstance(doc, dict) else None
+    if not doc or not isinstance(terms, list) or not terms or not doc.get("version") or not all(
+            isinstance(t, dict) and t.get("id") and t.get("label") and t.get("kind") for t in terms):
+        raise ValueError("공통 온톨로지 형식이 아닙니다 (version과 id·label·kind를 가진 terms 필요)")
+    dst = vault / "ontology" / "common.yaml"
+    old = {t.get("id") for t in (review._load_yaml(dst).get("terms") or []) if isinstance(t, dict)}
+    write_atomic(dst, text)
+    new = {t["id"] for t in terms}
+    kg.rebuild(vault)
+    moved = reevaluate_waiting(cfg, run_id)
+    # ponytail: 사라진 id를 참조하는 overlay·claims를 held 질문으로 바꾸는 단계는 없다 — 목록만 보여 준다. 실제 교체가 생기면 넣는다
+    out = {"version": str(doc["version"]), "terms": len(new), "added": sorted(new - old), "removed": sorted(old - new),
+           "reconnected": moved}
+    trace.event(vault, run_id, "common.pull", "ok",
+                f"공통 온톨로지 {out['version']} · 용어 {len(new)}개 (추가 {len(out['added'])}, 삭제 {len(out['removed'])})", out)
+    return out
+
+
+def export_contribution(cfg: Config, out: Path | None = None, run_id: str | None = None) -> Path:
+    """연구실 용어·positive 별칭·승인 클레임(문서 출처만)을 기여 파일로 쓴다. 레코드에서 나온 것은 넣지 않는다."""
+    import yaml
+    from .config import load_vault_config
+    from .vocab import write_atomic
+    vault = Path(cfg.vault)
+    overlay = review._load_yaml(vault / "ontology" / "overlay.yaml")
+    claims = review._load_yaml(vault / "ontology" / "claims.yaml")
+    with kg.db(vault) as conn:
+        def from_records(qid) -> bool:   # 출처를 모르면 레코드로 본다 — 실험 내용이 새지 않게
+            row = conn.execute("select context from question where qid=?", (qid,)).fetchone()
+            return not row or bool(((json.loads(row[0] or "{}")).get("source") or {}).get("records"))
+        docs = {r[0]: (r[1], r[2], r[3]) for r in conn.execute("select doc_id, title, kind, source from doc")}
+        terms = [{k: t.get(k) for k in ("id", "label", "kind", "parent", "label_ko", "synonyms")}
+                 for t in overlay.get("terms") or [] if isinstance(t, dict)
+                 and str(t.get("id", "")).startswith("lab:") and not from_records(t.get("qid"))]
+        aliases = [{"surface": a.get("surface"), "term_id": a.get("term_id")}
+                   for a in overlay.get("aliases") or [] if isinstance(a, dict)
+                   and a.get("verdict") == "positive" and not from_records(a.get("qid"))]
+    shared = []
+    for c in claims.get("claims") or []:
+        if not isinstance(c, dict):
+            continue
+        srcs = [{"title": docs[s["doc_id"]][0], "page": s.get("page"), "quote": (s.get("quote") or "")[:200],
+                 **({"url": docs[s["doc_id"]][2]} if docs[s["doc_id"]][1] == "web" else {})}
+                for s in c.get("sources") or [] if isinstance(s, dict) and s.get("doc_id") in docs]
+        if srcs:
+            shared.append({k: c.get(k) for k in ("id", "subject", "predicate", "object", "conditions", "spec_kind")}
+                          | {"sources": srcs})
+    chosen = load_vault_config(vault).domains
+    path = Path(out) if out else vault / "ontology" / f"contribution-{time.strftime('%Y%m%d')}.yaml"
+    body = {"domains": chosen, "exported_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "terms": terms, "aliases": aliases, "claims": shared}
+    write_atomic(path, "# 공통 온톨로지 기여 파일 — 외부 id 보완과 PR은 사람이 한다\n"
+                 + yaml.safe_dump(body, allow_unicode=True, sort_keys=False))
+    trace.event(vault, run_id, "common.export", "ok",
+                f"기여 파일 · 용어 {len(terms)}개, 별칭 {len(aliases)}개, 클레임 {len(shared)}개", {"path": str(path)})
+    return path

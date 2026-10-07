@@ -54,9 +54,25 @@ def _print_build(st: dict) -> None:
           f"실패 묶음 {st.get('errors', 0)}개 — 웹의 '검토' 화면에서 답하세요")
 
 
-def _run_ontology(cfg, action: str, ids: list[str]) -> None:
+def _run_ontology(cfg, action: str, ids: list[str], url: str | None = None, out: str | None = None) -> None:
     from .config import load_vault_config
     from .vocab import active_domain, load_domains, select_domains
+    if action in ("pull", "export"):
+        from . import ontology_agent, trace
+        run = trace.start(cfg.vault, "ontology", f"공통 온톨로지 {action}")
+        try:
+            if action == "pull":
+                r = ontology_agent.pull_common(cfg, url, run)
+                print(f"공통 온톨로지 {r['version']} · 용어 {r['terms']}개 (추가 {len(r['added'])}, 삭제 {len(r['removed'])})")
+                if r["removed"]:
+                    print(f"사라진 id: {', '.join(r['removed'])} — overlay·claims에서 참조하면 손으로 고치세요")
+            else:
+                print(f"기여 파일: {ontology_agent.export_contribution(cfg, out, run)} — 외부 id를 보완해 PR로 보내세요")
+        except Exception:
+            trace.finish(cfg.vault, run, "failed")
+            raise
+        trace.finish(cfg.vault, run)
+        return
     if action == "use":
         try:
             notice = select_domains(cfg.vault, ids)
@@ -99,9 +115,11 @@ def main(argv: list[str] | None = None) -> None:
     mp.add_argument("action", choices=["add"])
     mp.add_argument("path", help="텍스트 PDF 경로")
     mp.add_argument("--pages", default=None, help="쪽 범위 예: 12-40")
-    on = sub.add_parser("ontology", help="연구 도메인 목록·선택")
-    on.add_argument("action", choices=["domains", "use"])
+    on = sub.add_parser("ontology", help="연구 도메인 목록·선택, 공통 온톨로지 pull·기여 export")
+    on.add_argument("action", choices=["domains", "use", "pull", "export"])
     on.add_argument("ids", nargs="*", help="use: 고를 도메인 id들")
+    on.add_argument("--url", default=None, help="pull: 공통 온톨로지 YAML 주소 (기본 GitHub main)")
+    on.add_argument("--out", default=None, help="export: 기여 파일 경로")
     args = p.parse_args(argv)
     if args.cmd == "init":
         run_init()  # cfg 로드 전 분기 — 깨진 설정파일도 init으로 복구 가능해야 함
@@ -158,7 +176,7 @@ def main(argv: list[str] | None = None) -> None:
                 print(f"노드 {st['nodes']}개 (미연결 표기 {st['temp']}개), 엣지 {st['edges']}개, "
                       f"마지막 동기화 {st['synced_at'] or '없음'}")
         elif args.cmd == "ontology":
-            _run_ontology(cfg, args.action, args.ids)
+            _run_ontology(cfg, args.action, args.ids, args.url, args.out)
         elif args.cmd == "serve":
             try:
                 from .server import run_serve
