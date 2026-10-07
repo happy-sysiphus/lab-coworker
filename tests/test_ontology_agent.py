@@ -258,3 +258,16 @@ def test_export_contribution_leaves_out_record_derived_items(kg_vault):
     assert [c["id"] for c in got["claims"]] == ["c-1", "c-2", "s-1"]
     assert got["claims"][0]["sources"] == [{"title": "X manual", "page": 4,
                                             "quote": "higher temperature promotes protodeboronation"}]
+
+
+def test_new_term_questions_group_by_proposed_kind_not_slot(kg_vault):
+    from horcrux.vocab import load_vocabulary
+    vocab = load_vocabulary(kg_vault)
+    nt = {"label": "MIDA boronate", "label_ko": "", "kind": "material", "parent": None}
+    with kg.db(kg_vault) as conn:
+        qids = {oa._term_question(conn, vocab, {"surface": surface, "kind": slot, "context": "", "choice": "NEW",
+                                               "new_term": nt, "candidates": [], "source_kind": "chunk",
+                                               "source_id": "web-x#1", "count": 1})
+                for surface, slot in (("MIDA boronate", "parameter"), ("MIDA  Boronate", "material"))}
+        count = conn.execute("select count from question where qid=?", (next(iter(qids)),)).fetchone()[0]
+    assert len(qids) == 1 and count == 2

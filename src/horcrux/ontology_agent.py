@@ -357,6 +357,7 @@ def _term_question(conn, vocab: Vocabulary, it: dict) -> str | None:
     key = f"{it['kind']}:{canon(it['surface'])}"
     if it["choice"] == "NEW":
         nt = it["new_term"]
+        key = f"{nt['kind']}:{canon(it['surface'])}"   # 같은 표기가 다른 자리(파라미터·물질)에서 나와도 새 용어 질문은 하나
         return review.upsert_question(conn, "new_term", key, [iid], review.new_term_text(vocab, it["surface"], nt["kind"], nt["parent"]),
                                       {"action": "register", "new_term": nt}, ctx, it.get("count", 1))
     return review.upsert_question(conn, "identity", key, [iid], review.identity_text(vocab, it["surface"], it["choice"]),
