@@ -1,6 +1,7 @@
 import type {
   AppConfig, AskResult, AuthConfig, KgGraph, Lab, LabMe, ParsedLog, RecordDetail, RecordMeta, Reference,
 } from "./types";
+import type { TraceEvent, TraceRun } from "./flow";
 
 // AuthProvider가 등록한다 — api.ts가 Supabase나 라우터를 직접 알지 않게
 let getToken: () => Promise<string | null> = async () => null;
@@ -43,6 +44,9 @@ export const api = {
   ask: (text: string, runId?: string) =>
     http<AskResult>("POST", "/api/ask", { text, run_id: runId ?? null }),
   kgGraph: () => http<KgGraph>("GET", "/api/kg/graph"),
+  flowRuns: () => http<{ runs: TraceRun[] }>("GET", "/api/flow/runs"),
+  flowRun: (id: string, after = 0) =>
+    http<{ run: TraceRun; events: TraceEvent[] }>("GET", `/api/flow/runs/${encodeURIComponent(id)}?after=${after}`),
   listRecords: () => http<{ records: RecordMeta[] }>("GET", "/api/records"),
   getRecord: (id: string) => http<RecordDetail>("GET", `/api/records/${id}`),
   feedback: (recordId: string, resolved: boolean, cause?: string, note?: string) =>

@@ -477,6 +477,14 @@ def evidence_label(cards: list[dict]) -> str:
     return "web" if kinds else "none"
 
 
+TOOL_KO = {"cases": "사례", "causes": "원인", "relations": "관계", "specs": "스펙", "wiki": "위키",
+           "followups": "후속", "passages": "원문"}
+
+
+def _hits_ko(hits: dict) -> str:
+    return " · ".join(f"{TOOL_KO.get(k, k)} {v}" for k, v in hits.items()) or "도구 없음"
+
+
 def research(cfg: Config, question: str, run_id: str | None = None) -> dict:
     vault = Path(cfg.vault)
     run = trace.start(vault, "ask", question[:60], run_id)
@@ -500,7 +508,7 @@ def _research(cfg: Config, vault: Path, question: str, run: str) -> dict:
                 f"최신화 {fresh.get('changed', fresh.get('records', 0))}건, 연결 용어 {len(link.terms)}개",
                 {"terms": link.terms[:20], "unlinked": link.unlinked[:10]}, int((time.perf_counter() - t0) * 1000))
     cards, hits = collect(vault, vocab, g, link, INITIAL_TOOLS)
-    trace.event(vault, run, "p3.search", "ok", f"관계 검색 {hits}", hits)
+    trace.event(vault, run, "p3.search", "ok", f"관계 검색 · {_hits_ko(hits)}", hits)
     trace.event(vault, run, "p3.integrate", "ok", f"카드 {len(cards)}장", {"cards": [c["id"] for c in cards]})
     met, reasons = evaluate(link, cards)
     trace.event(vault, run, "p3.evaluate", "ok" if met else "fail", "목표 달성" if met else "; ".join(reasons))
@@ -528,7 +536,7 @@ def _research(cfg: Config, vault: Path, question: str, run: str) -> dict:
                 if parent and parent not in link.terms:
                     link.terms.append(parent)
         cards, hits = collect(vault, vocab, g, link, tools, reform.symptom)
-        trace.event(vault, run, "p3.search", "ok", f"추가 검색 {hits}", hits)
+        trace.event(vault, run, "p3.search", "ok", f"추가 검색 · {_hits_ko(hits)}", hits)
         trace.event(vault, run, "p3.integrate", "ok", f"카드 {len(cards)}장", {"cards": [c["id"] for c in cards]})
         unknown = reform.unknown
         non_wiki = any(c["kind"] != "wiki" for c in cards)

@@ -125,13 +125,16 @@ class SettingsIn(BaseModel):
     rotate_invite: bool = False
 
 
-def _sync_quietly(cfg: Config, record_id: str, run_id: str | None) -> None:
-    """레코드 하나를 그래프에 반영하고 실행 기록을 닫는다. 실패해도 저장은 이미 확정 — 경고만 남긴다."""
+def _sync_quietly(cfg: Config, record_id: str, run_id: str | None, normalize: bool = True) -> None:
+    """레코드 하나를 그래프에 반영하고 실행 기록을 닫는다. 실패해도 저장은 이미 확정 — 경고만 남긴다.
+
+    normalize=False(피드백)는 정규화 단계를 따로 남기지 않는다 — 워크플로 뷰의 "피드백 → 지식 그래프" 선."""
     try:
         c = kg.sync_records(cfg.vault, [record_id])
-        trace.event(cfg.vault, run_id, "p2.normalize", "ok",
-                    f"엣지 {c['edges']}개, 미연결 표기 {c['temp']}개", c)
-        trace.event(cfg.vault, run_id, "p2.store", "ok", "지식 그래프 반영")
+        counts = f"엣지 {c['edges']}개, 미연결 표기 {c['temp']}개"
+        if normalize:
+            trace.event(cfg.vault, run_id, "p2.normalize", "ok", counts, c)
+        trace.event(cfg.vault, run_id, "p2.store", "ok", "지식 그래프 반영" if normalize else f"지식 그래프 반영 · {counts}")
         trace.finish(cfg.vault, run_id)
     except Exception as e:
         print(f"(KG 동기화 실패 — 'horcrux kg rebuild'로 재시도: {e})")
@@ -310,7 +313,7 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
             msg = run_feedback(c, inp.record_id, inp.resolved, inp.cause, inp.note)
             run_id = trace.start(c.vault, "feedback", inp.record_id)
             trace.event(c.vault, run_id, "fb.feedback", "ok", msg)
-            _sync_quietly(c, inp.record_id, run_id)
+            _sync_quietly(c, inp.record_id, run_id, normalize=False)
         return {"message": msg}
 
     @app.put("/api/records/{record_id}")
@@ -357,6 +360,17 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
                         f"레코드 {out['records']}건, 엣지 {out['edges']}개, 승인 클레임 {out['claims']}개", out)
             trace.finish(c.vault, run_id)
         return out
+
+    @app.get("/api/flow/runs")
+    def api_flow_runs(limit: int = 30, ctx=Depends(require_lab)):
+        return {"runs": trace.list_runs(lab_cfg(ctx).vault, limit)}
+
+    @app.get("/api/flow/runs/{run_id}")
+    def api_flow_run(run_id: str, after: int = 0, ctx=Depends(require_lab)):
+        got = trace.get_run(lab_cfg(ctx).vault, run_id, after)
+        if got is None:
+            raise HTTPException(404, "실행 기록 없음")
+        return got
 
     @app.get("/api/auth-config")
     def api_auth_config():

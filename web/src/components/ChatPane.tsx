@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { GitFork, Send, Undo2 } from "lucide-react";
 import type { ChatMsg } from "../types";
 
-export default function ChatPane({ messages, onSend, busy, placeholder, onRewind, onFork }: {
+export default function ChatPane({ messages, onSend, busy, busyText, placeholder, onRewind, onFork }: {
   messages: ChatMsg[];
   onSend: (text: string) => void;
   busy: boolean;
+  busyText?: string;   // 대기 중 문구 — Ask는 실행 기록의 마지막 단계를 띄운다
   placeholder?: string;
   onRewind?: (uIdx: number) => void; // uIdx = 사용자 발화 순번 (0=초기 로그)
   onFork?: (uIdx: number) => void;
@@ -71,7 +72,7 @@ export default function ChatPane({ messages, onSend, busy, placeholder, onRewind
             )}
           </div>
         ))}
-        {busy && <div className="text-sm text-slate-400 animate-pulse">분석 중... (수십 초 걸릴 수 있어요)</div>}
+        {busy && <div className="text-sm text-slate-400 animate-pulse">{busyText ?? "분석 중... (수십 초 걸릴 수 있어요)"}</div>}
         <div ref={bottom} />
       </div>
       <div className="shrink-0 border-t border-slate-200 bg-white p-3 md:p-4">

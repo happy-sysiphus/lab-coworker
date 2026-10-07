@@ -1,0 +1,1382 @@
+{
+ "run_id": "pilot-02",
+ "label": "본실험 v1",
+ "date": "2026-09-29",
+ "action_budget": 50,
+ "tasks": [
+  {
+   "task_id": "suzuki_flow_01",
+   "title": "Suzuki-Miyaura coupling in flow: 3-bromoquinoline with 3,5-dimethylisoxazole-4-boronic acid pinacol ester",
+   "targets": {
+    "yield": 78.67,
+    "ton": 65.56
+   }
+  },
+  {
+   "task_id": "suzuki_flow_02",
+   "title": "Suzuki-Miyaura coupling in flow: 3-chloropyridine with 3,5-dimethylisoxazole-4-boronic acid pinacol ester",
+   "targets": {
+    "yield": 37.18,
+    "ton": 17.7
+   }
+  },
+  {
+   "task_id": "suzuki_flow_03",
+   "title": "Suzuki-Miyaura coupling in flow: 3-chloropyridine with benzofuran-2-boronic acid",
+   "targets": {
+    "yield": 85.98,
+    "ton": 71.65
+   }
+  },
+  {
+   "task_id": "suzuki_flow_04",
+   "title": "Suzuki-Miyaura coupling in flow: 2-chloropyridine with N-Boc-pyrrole-2-boronic acid",
+   "targets": {
+    "yield": 86.91,
+    "ton": 72.9
+   }
+  }
+ ],
+ "conditions": {
+  "baseline": {
+   "name": "일반 LLM",
+   "summary": {
+    "success": 4,
+    "actions": 35,
+    "consults": 5,
+    "experiments": 30
+   },
+   "episodes": [
+    {
+     "task_id": "suzuki_flow_01",
+     "outcome": "success",
+     "actions_to_success": 8,
+     "actions": [
+      {
+       "seq": 1,
+       "kind": "consult",
+       "question": {
+        "en": "For the Suzuki coupling of 3-bromoquinoline with 3,5-dimethylisoxazole-4-boronic acid pinacol ester using DBU in THF/water flow, which allowed Pd precatalyst and practical temperature, residence time, and loading are most promising for achieving both high yield and TON? Please suggest an initial condition.",
+        "ko": "DBU를 사용한 THF/water flow 조건에서 3-bromoquinoline과 3,5-dimethylisoxazole-4-boronic acid pinacol ester의 Suzuki coupling에 대해, 높은 수율과 TON을 모두 달성하는 데 가장 유망한 허용 Pd precatalyst와 실용적인 온도, 체류 시간, loading은 무엇인가? 초기 조건을 제안해 달라."
+       },
+       "answer": {
+        "en": "Try SPhos Pd G3 at 100 °C for 360 s with 1.2 mol% catalyst. This is a reasoned starting condition, not a reported result for this exact substrate pair.",
+        "ko": "SPhos Pd G3를 100 °C에서 360 s 동안 촉매 1.2 mol%로 시도하라. 이는 추론에 근거한 출발 조건이며, 이 기질 쌍에 대해 보고된 결과는 아니다."
+       },
+       "cited": [
+        {
+         "id": "initial:text",
+         "title": "General background (initial text)",
+         "excerpt": "# General background for the consultation (initial text) This text collects public background material on palladium-catalysed Suzuki-Miyaura coupling: three reference pages in full and the opening of seven further sources. Each part names its source. ## Suzuki reaction (Wikipedia) Source: https://en"
+        }
+       ]
+      },
+      {
+       "seq": 2,
+       "kind": "experiment",
+       "note": {
+        "en": "The advised SPhos Pd G3 baseline may reach the yield target at 1.2 mol% loading; this run will establish the first measured yield and TON.",
+        "ko": "권장된 SPhos Pd G3 기준 조건은 1.2 mol% loading에서 수율 목표에 도달할 수 있다. 이번 run으로 첫 측정 수율과 TON을 확보한다."
+       },
+       "parameters": {
+        "catalyst": "SPhos Pd G3",
+        "residence_time": 360.0,
+        "temperature": 100.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 24.28,
+        "ton": 20.23
+       },
+       "success": false
+      },
+      {
+       "seq": 3,
+       "kind": "experiment",
+       "note": {
+        "en": "Test whether increasing temperature and residence time rescues SPhos Pd G3 performance while holding catalyst and loading fixed; expect higher yield and TON than obs:a002.",
+        "ko": "촉매와 loading을 고정한 채 온도와 체류 시간을 높이면 SPhos Pd G3의 성능이 회복되는지 검증한다. obs:a002보다 높은 수율과 TON을 기대한다."
+       },
+       "parameters": {
+        "catalyst": "SPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 33.78,
+        "ton": 28.15
+       },
+       "success": false
+      },
+      {
+       "seq": 4,
+       "kind": "experiment",
+       "note": {
+        "en": "XPhos Pd G3 at 600 s and 110 °C will outperform SPhos Pd G3 at the same loading and conditions.",
+        "ko": "600 s, 110 °C에서 XPhos Pd G3가 같은 loading과 조건의 SPhos Pd G3보다 우수할 것이다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 52.11,
+        "ton": 43.42
+       },
+       "success": false
+      },
+      {
+       "seq": 5,
+       "kind": "experiment",
+       "note": {
+        "en": "H3: RuPhos Pd G3 at the highest tested residence time and temperature may improve yield relative to XPhos Pd G3 at the same loading and conditions; this is exploratory.",
+        "ko": "H3: 시험한 가장 긴 체류 시간과 가장 높은 온도에서 RuPhos Pd G3는 같은 loading과 조건의 XPhos Pd G3보다 수율을 개선할 수 있다. 이는 탐색적 가설이다."
+       },
+       "parameters": {
+        "catalyst": "RuPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 36.63,
+        "ton": 30.53
+       },
+       "success": false
+      },
+      {
+       "seq": 6,
+       "kind": "experiment",
+       "note": {
+        "en": "H4: XPhos Pd G2 at 600 s and 110 °C may outperform XPhos Pd G3 at matched conditions.",
+        "ko": "H4: 600 s, 110 °C에서 XPhos Pd G2가 동일 조건의 XPhos Pd G3보다 우수할 수 있다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G2",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 21.94,
+        "ton": 18.29
+       },
+       "success": false
+      },
+      {
+       "seq": 7,
+       "kind": "experiment",
+       "note": {
+        "en": "At matched conditions, PtBu3 Pd G3 may improve yield over the current best, XPhos Pd G3; this is an exploratory catalyst screen, not a prediction.",
+        "ko": "동일 조건에서 PtBu3 Pd G3가 현재 최선인 XPhos Pd G3보다 수율을 개선할 수 있다. 이는 예측이 아니라 탐색적 촉매 스크리닝이다."
+       },
+       "parameters": {
+        "catalyst": "PtBu3 Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 49.1,
+        "ton": 40.91
+       },
+       "success": false
+      },
+      {
+       "seq": 8,
+       "kind": "experiment",
+       "note": {
+        "en": "H5: Measure Xantphos Pd G3 under the best tested severity and fixed loading to compare it with prior catalysts; its relative performance is unknown.",
+        "ko": "H5: 시험한 조건 중 가장 가혹한 조건과 고정 loading에서 Xantphos Pd G3를 측정해 이전 촉매들과 비교한다. 상대적 성능은 알려져 있지 않다."
+       },
+       "parameters": {
+        "catalyst": "Xantphos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 78.67,
+        "ton": 65.56
+       },
+       "success": true
+      }
+     ]
+    },
+    {
+     "task_id": "suzuki_flow_02",
+     "outcome": "success",
+     "actions_to_success": 8,
+     "actions": [
+      {
+       "seq": 1,
+       "kind": "consult",
+       "question": {
+        "en": "For Suzuki coupling of 3-chloropyridine with 3,5-dimethylisoxazole-4-boronic acid pinacol ester under the stated conditions, which precatalyst and approximate time, temperature, and loading are most promising for achieving both target yield and TON?",
+        "ko": "명시된 조건에서 3-chloropyridine과 3,5-dimethylisoxazole-4-boronic acid pinacol ester의 Suzuki coupling에 대해, 목표 수율과 TON을 모두 달성하는 데 가장 유망한 precatalyst와 대략적인 시간, 온도, loading은 무엇인가?"
+       },
+       "answer": {
+        "en": "First try XPhos Pd G3 at 600 s, 110 °C, and 2.1 mol% catalyst loading.",
+        "ko": "먼저 XPhos Pd G3를 600 s, 110 °C, 촉매 loading 2.1 mol%로 시도하라."
+       },
+       "cited": [
+        {
+         "id": "initial:text",
+         "title": "General background (initial text)",
+         "excerpt": "# General background for the consultation (initial text) This text collects public background material on palladium-catalysed Suzuki-Miyaura coupling: three reference pages in full and the opening of seven further sources. Each part names its source. ## Suzuki reaction (Wikipedia) Source: https://en"
+        },
+        {
+         "id": "obs:baseline-r1-e001:a004",
+         "title": "이전 실험 관측",
+         "excerpt": "XPhos Pd G3 110°C 600s 1.2 mol% → yield 52.1 %, TON 43.4"
+        },
+        {
+         "id": "obs:baseline-r1-e001:a006",
+         "title": "이전 실험 관측",
+         "excerpt": "XPhos Pd G2 110°C 600s 1.2 mol% → yield 21.9 %, TON 18.3"
+        },
+        {
+         "id": "obs:baseline-r1-e001:a008",
+         "title": "이전 실험 관측",
+         "excerpt": "Xantphos Pd G3 110°C 600s 1.2 mol% → yield 78.7 %, TON 65.6"
+        }
+       ]
+      },
+      {
+       "seq": 2,
+       "kind": "experiment",
+       "note": {
+        "en": "XPhos Pd G3 at the recommended time, temperature, and loading may reach both yield and TON targets for this aryl chloride substrate.",
+        "ko": "권장된 시간, 온도, loading에서 XPhos Pd G3는 이 aryl chloride 기질에 대해 수율과 TON 목표를 모두 달성할 수 있다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 22.34,
+        "ton": 10.64
+       },
+       "success": false
+      },
+      {
+       "seq": 3,
+       "kind": "experiment",
+       "note": {
+        "en": "At matched conditions, Xantphos Pd G3 will outperform XPhos Pd G3 for this substrate.",
+        "ko": "동일 조건에서 이 기질에 대해 Xantphos Pd G3가 XPhos Pd G3보다 우수할 것이다."
+       },
+       "parameters": {
+        "catalyst": "Xantphos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 12.58,
+        "ton": 5.99
+       },
+       "success": false
+      },
+      {
+       "seq": 4,
+       "kind": "experiment",
+       "note": {
+        "en": "At matched conditions, PtBu3 Pd G3 may give higher yield and TON than XPhos Pd G3 on this aryl chloride substrate.",
+        "ko": "동일 조건에서 이 aryl chloride 기질에 대해 PtBu3 Pd G3가 XPhos Pd G3보다 높은 수율과 TON을 낼 수 있다."
+       },
+       "parameters": {
+        "catalyst": "PtBu3 Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 11.06,
+        "ton": 5.27
+       },
+       "success": false
+      },
+      {
+       "seq": 5,
+       "kind": "experiment",
+       "note": {
+        "en": "SPhos Pd G3 may outperform XPhos Pd G3 at the matched conditions.",
+        "ko": "동일 조건에서 SPhos Pd G3가 XPhos Pd G3보다 우수할 수 있다."
+       },
+       "parameters": {
+        "catalyst": "SPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 17.96,
+        "ton": 8.55
+       },
+       "success": false
+      },
+      {
+       "seq": 6,
+       "kind": "experiment",
+       "note": {
+        "en": "At fixed XPhos Pd G3, 600 s, and 2.1 mol% loading, lowering the temperature to 90 °C will improve yield if the low yield at 110 °C reflects thermal degradation.",
+        "ko": "XPhos Pd G3, 600 s, 2.1 mol% loading을 고정한 상태에서, 110 °C에서의 낮은 수율이 열분해 때문이라면 온도를 90 °C로 낮추면 수율이 개선될 것이다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 90.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 20.53,
+        "ton": 9.78
+       },
+       "success": false
+      },
+      {
+       "seq": 7,
+       "kind": "experiment",
+       "note": {
+        "en": "At matched conditions, RuPhos Pd G3 may improve yield and TON over XPhos Pd G3.",
+        "ko": "동일 조건에서 RuPhos Pd G3가 XPhos Pd G3보다 수율과 TON을 개선할 수 있다."
+       },
+       "parameters": {
+        "catalyst": "RuPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 20.87,
+        "ton": 9.94
+       },
+       "success": false
+      },
+      {
+       "seq": 8,
+       "kind": "experiment",
+       "note": {
+        "en": "H1: PCy3 Pd G3 will improve yield and TON over XPhos Pd G3 at matched conditions.",
+        "ko": "H1: 동일 조건에서 PCy3 Pd G3가 XPhos Pd G3보다 수율과 TON을 개선할 것이다."
+       },
+       "parameters": {
+        "catalyst": "PCy3 Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 37.18,
+        "ton": 17.7
+       },
+       "success": true
+      }
+     ]
+    },
+    {
+     "task_id": "suzuki_flow_03",
+     "outcome": "success",
+     "actions_to_success": 5,
+     "actions": [
+      {
+       "seq": 1,
+       "kind": "consult",
+       "question": {
+        "en": "For this 3-chloropyridine/benzofuran-2-boronic acid flow coupling, which precatalyst and temperature/residence-time range is most likely to reach at least 85.98% yield at ≤1.20 mol% catalyst loading, and what degradation tradeoffs should guide the initial experiment?",
+        "ko": "이 3-chloropyridine/benzofuran-2-boronic acid flow coupling에서 촉매 loading ≤1.20 mol%로 85.98% 이상의 수율에 도달할 가능성이 가장 높은 precatalyst와 온도/체류 시간 범위는 무엇이며, 초기 실험 설계 시 고려해야 할 분해 관련 trade-off는 무엇인가?"
+       },
+       "answer": {
+        "en": "Try PCy3 Pd G3 at 110°C for 600 s and 1.2 mol% loading. A reasonable initial screening window is 100–110°C and 480–600 s. At 1.2 mol% loading, 85.98% yield corresponds to TON 71.65.",
+        "ko": "PCy3 Pd G3를 110°C, 600 s, 1.2 mol% loading으로 시도하라. 합리적인 초기 스크리닝 범위는 100–110°C, 480–600 s이다. 1.2 mol% loading에서 85.98% 수율은 TON 71.65에 해당한다."
+       },
+       "cited": [
+        {
+         "id": "initial:text",
+         "title": "General background (initial text)",
+         "excerpt": "# General background for the consultation (initial text) This text collects public background material on palladium-catalysed Suzuki-Miyaura coupling: three reference pages in full and the opening of seven further sources. Each part names its source. ## Suzuki reaction (Wikipedia) Source: https://en"
+        },
+        {
+         "id": "obs:baseline-r1-e002:a008",
+         "title": "이전 실험 관측",
+         "excerpt": "PCy3 Pd G3 110°C 600s 2.1 mol% → yield 37.2 %, TON 17.7"
+        },
+        {
+         "id": "obs:baseline-r1-e001:a008",
+         "title": "이전 실험 관측",
+         "excerpt": "Xantphos Pd G3 110°C 600s 1.2 mol% → yield 78.7 %, TON 65.6"
+        }
+       ]
+      },
+      {
+       "seq": 2,
+       "kind": "experiment",
+       "note": {
+        "en": "H1: PCy3 Pd G3 at 110°C and 600 s with 1.2 mol% loading will provide a useful high-severity test of whether the target yield and TON are attainable; the outcome is uncertain.",
+        "ko": "H1: 110°C, 600 s, 1.2 mol% 로딩 조건의 PCy3 Pd G3는 목표 수율과 TON을 달성할 수 있는지 확인하는 유용한 고강도 시험이 될 것이다. 결과는 불확실하다."
+       },
+       "parameters": {
+        "catalyst": "PCy3 Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 32.5,
+        "ton": 27.09
+       },
+       "success": false
+      },
+      {
+       "seq": 3,
+       "kind": "experiment",
+       "note": {
+        "en": "H2: Xantphos Pd G3 may improve yield versus PCy3 Pd G3 at the same conditions.",
+        "ko": "H2: 같은 조건에서 Xantphos Pd G3는 PCy3 Pd G3보다 수율이 높을 수 있다."
+       },
+       "parameters": {
+        "catalyst": "Xantphos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 22.24,
+        "ton": 18.53
+       },
+       "success": false
+      },
+      {
+       "seq": 4,
+       "kind": "experiment",
+       "note": {
+        "en": "Changing only the catalyst from PCy3 Pd G3 to PtBu3 Pd G3 may improve coupling of the aryl chloride at the same conditions; this is an untested hypothesis.",
+        "ko": "같은 조건에서 촉매만 PCy3 Pd G3에서 PtBu3 Pd G3로 바꾸면 aryl chloride의 커플링이 개선될 수 있다. 아직 검증하지 않은 가설이다."
+       },
+       "parameters": {
+        "catalyst": "PtBu3 Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 46.17,
+        "ton": 38.47
+       },
+       "success": false
+      },
+      {
+       "seq": 5,
+       "kind": "experiment",
+       "note": {
+        "en": "H4: XPhos Pd G3 may improve yield relative to PtBu3 Pd G3 at matched conditions.",
+        "ko": "H4: 조건을 맞췄을 때 XPhos Pd G3는 PtBu3 Pd G3보다 수율이 높을 수 있다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 87.08,
+        "ton": 72.57
+       },
+       "success": true
+      }
+     ]
+    },
+    {
+     "task_id": "suzuki_flow_04",
+     "outcome": "success",
+     "actions_to_success": 14,
+     "actions": [
+      {
+       "seq": 1,
+       "kind": "consult",
+       "question": {
+        "en": "For Suzuki coupling of 2-chloropyridine with N-Boc-pyrrole-2-boronic acid (1.5 equiv) using DBU (2.0 equiv) in THF/water 5:1 in flow, which listed Pd precatalyst and temperature/residence time are most likely to achieve ≥86.91% yield at ≤1.19 mol% catalyst loading (TON ≥72.9), and what starting loading do you recommend?",
+        "ko": "flow에서 THF/water 5:1과 DBU (2.0 equiv)를 사용한 2-chloropyridine과 N-Boc-pyrrole-2-boronic acid (1.5 equiv)의 Suzuki 커플링에서, 나열된 Pd precatalyst와 온도/체류 시간 중 ≤1.19 mol% 촉매 로딩(TON ≥72.9)에서 ≥86.91% 수율을 달성할 가능성이 가장 높은 것은 무엇인가? 또 권장하는 시작 로딩은 얼마인가?"
+       },
+       "answer": {
+        "en": "Try XPhos Pd G3 at 110 °C, 600 s, and 1.19 mol% catalyst loading as the initial condition.",
+        "ko": "초기 조건으로 XPhos Pd G3를 110 °C, 600 s, 1.19 mol% 촉매 로딩에서 시도한다."
+       },
+       "cited": [
+        {
+         "id": "obs:baseline-r1-e003:a005",
+         "title": "이전 실험 관측",
+         "excerpt": "XPhos Pd G3 110°C 600s 1.2 mol% → yield 87.1 %, TON 72.6"
+        }
+       ]
+      },
+      {
+       "seq": 2,
+       "kind": "experiment",
+       "note": {
+        "en": "XPhos Pd G3 at 110 °C, 600 s, and 1.19 mol% will meet the yield and TON targets for the exact substrate pair.",
+        "ko": "110 °C, 600 s, 1.19 mol% 조건의 XPhos Pd G3는 해당 기질 쌍에서 수율과 TON 목표를 모두 달성할 것이다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.19
+       },
+       "results": {
+        "yield": 84.75,
+        "ton": 71.22
+       },
+       "success": false
+      },
+      {
+       "seq": 3,
+       "kind": "consult",
+       "question": {
+        "en": "After the exact-substrate result obs:a002 (XPhos Pd G3, 1.19 mol%, 600 s, 110 °C; 84.754% yield), what single next condition is most promising for reaching the ≥86.91% yield target while retaining the 1.19 mol% loading? Please recommend the catalyst and settings, and briefly explain the evidence for changing catalyst versus temperature or residence time.",
+        "ko": "해당 기질의 결과 obs:a002 (XPhos Pd G3, 1.19 mol%, 600 s, 110 °C; 84.754% 수율) 이후, 1.19 mol% 로딩을 유지하면서 ≥86.91% 수율 목표에 도달하려면 다음으로 가장 유망한 조건 하나는 무엇인가? 촉매와 설정을 추천하고, 온도나 체류 시간 대신 촉매를 바꾸는 근거를 간단히 설명해 달라."
+       },
+       "answer": {
+        "en": "Try PCy3 Pd G3 at 1.19 mol% catalyst loading, 600 s residence time, and 110 °C. Change only the catalyst.",
+        "ko": "1.19 mol% 촉매 로딩, 600 s 체류 시간, 110 °C에서 PCy3 Pd G3를 시도한다. 촉매만 바꾼다."
+       },
+       "cited": [
+        {
+         "id": "initial:text",
+         "title": "General background (initial text)",
+         "excerpt": "# General background for the consultation (initial text) This text collects public background material on palladium-catalysed Suzuki-Miyaura coupling: three reference pages in full and the opening of seven further sources. Each part names its source. ## Suzuki reaction (Wikipedia) Source: https://en"
+        },
+        {
+         "id": "obs:baseline-r1-e004:a002",
+         "title": "이전 실험 관측",
+         "excerpt": "XPhos Pd G3 110°C 600s 1.19 mol% → yield 84.8 %, TON 71.2"
+        },
+        {
+         "id": "obs:baseline-r1-e002:a008",
+         "title": "이전 실험 관측",
+         "excerpt": "PCy3 Pd G3 110°C 600s 2.1 mol% → yield 37.2 %, TON 17.7"
+        },
+        {
+         "id": "obs:baseline-r1-e002:a002",
+         "title": "이전 실험 관측",
+         "excerpt": "XPhos Pd G3 110°C 600s 2.1 mol% → yield 22.3 %, TON 10.6"
+        },
+        {
+         "id": "obs:baseline-r1-e003:a005",
+         "title": "이전 실험 관측",
+         "excerpt": "XPhos Pd G3 110°C 600s 1.2 mol% → yield 87.1 %, TON 72.6"
+        }
+       ]
+      },
+      {
+       "seq": 4,
+       "kind": "experiment",
+       "note": {
+        "en": "H1: At the same settings and loading, PCy3 Pd G3 may give higher yield than XPhos Pd G3 on the exact substrate pair.",
+        "ko": "H1: 같은 설정과 로딩에서 PCy3 Pd G3는 해당 기질 쌍에서 XPhos Pd G3보다 수율이 높을 수 있다."
+       },
+       "parameters": {
+        "catalyst": "PCy3 Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.19
+       },
+       "results": {
+        "yield": 41.5,
+        "ton": 34.87
+       },
+       "success": false
+      },
+      {
+       "seq": 5,
+       "kind": "experiment",
+       "note": {
+        "en": "H1: SPhos Pd G3 at 1.19 mol% and the maximum time and temperature will outperform the measured XPhos yield on this substrate pair.",
+        "ko": "H1: 1.19 mol%, 최대 시간과 최대 온도 조건의 SPhos Pd G3는 이 기질 쌍에서 측정된 XPhos 수율을 넘어설 것이다."
+       },
+       "parameters": {
+        "catalyst": "SPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.19
+       },
+       "results": {
+        "yield": 80.41,
+        "ton": 67.57
+       },
+       "success": false
+      },
+      {
+       "seq": 6,
+       "kind": "experiment",
+       "note": {
+        "en": "RuPhos Pd G3 may improve yield over the measured catalysts at the same loading, residence time, and temperature; this is an exploratory comparison.",
+        "ko": "같은 로딩, 체류 시간, 온도에서 RuPhos Pd G3는 이미 측정한 촉매들보다 수율이 높을 수 있다. 탐색적 비교다."
+       },
+       "parameters": {
+        "catalyst": "RuPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.19
+       },
+       "results": {
+        "yield": 77.52,
+        "ton": 65.15
+       },
+       "success": false
+      },
+      {
+       "seq": 7,
+       "kind": "experiment",
+       "note": {
+        "en": "H1: At fixed ligand, loading, temperature, and residence time, XPhos Pd G2 may improve yield over XPhos Pd G3.",
+        "ko": "H1: 리간드, 로딩, 온도, 체류 시간을 고정했을 때 XPhos Pd G2는 XPhos Pd G3보다 수율이 높을 수 있다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G2",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.19
+       },
+       "results": {
+        "yield": 72.66,
+        "ton": 61.06
+       },
+       "success": false
+      },
+      {
+       "seq": 8,
+       "kind": "experiment",
+       "note": {
+        "en": "Test whether PtBu3 Pd G3 improves yield over XPhos Pd G3 at the same settings and loading; its relative performance is uncertain.",
+        "ko": "같은 설정과 로딩에서 PtBu3 Pd G3가 XPhos Pd G3보다 수율이 높은지 시험한다. 상대적 성능은 불확실하다."
+       },
+       "parameters": {
+        "catalyst": "PtBu3 Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.19
+       },
+       "results": {
+        "yield": 30.21,
+        "ton": 25.38
+       },
+       "success": false
+      },
+      {
+       "seq": 9,
+       "kind": "experiment",
+       "note": {
+        "en": "H1: Xantphos Pd G3 may outperform XPhos Pd G3 at the same settings and loading; this tests that catalyst comparison directly.",
+        "ko": "H1: 같은 설정과 로딩에서 Xantphos Pd G3가 XPhos Pd G3보다 성능이 좋을 수 있다. 이 촉매 비교를 직접 시험한다."
+       },
+       "parameters": {
+        "catalyst": "Xantphos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.19
+       },
+       "results": {
+        "yield": 52.28,
+        "ton": 43.93
+       },
+       "success": false
+      },
+      {
+       "seq": 10,
+       "kind": "experiment",
+       "note": {
+        "en": "Test whether the untested PPh3 Pd G3 improves yield over XPhos at the same loading, residence time, and temperature.",
+        "ko": "같은 로딩, 체류 시간, 온도에서 아직 시험하지 않은 PPh3 Pd G3가 XPhos보다 수율이 높은지 시험한다."
+       },
+       "parameters": {
+        "catalyst": "PPh3 Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.19
+       },
+       "results": {
+        "yield": 33.82,
+        "ton": 28.42
+       },
+       "success": false
+      },
+      {
+       "seq": 11,
+       "kind": "experiment",
+       "note": {
+        "en": "With XPhos Pd G3 at 1.19 mol% and 600 s, lowering the temperature from 110 °C to 100 °C may improve yield.",
+        "ko": "XPhos Pd G3, 1.19 mol%, 600 s 조건에서 온도를 110 °C에서 100 °C로 낮추면 수율이 높아질 수 있다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 100.0,
+        "catalyst_loading": 1.19
+       },
+       "results": {
+        "yield": 85.95,
+        "ton": 72.23
+       },
+       "success": false
+      },
+      {
+       "seq": 12,
+       "kind": "experiment",
+       "note": {
+        "en": "H1: At 1.19 mol% loading, XPhos Pd G3 at 95°C and 600 s will improve yield over the 100°C result.",
+        "ko": "H1: 1.19 mol% 로딩에서 95°C, 600 s 조건의 XPhos Pd G3는 100°C 결과보다 수율이 높을 것이다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 95.0,
+        "catalyst_loading": 1.19
+       },
+       "results": {
+        "yield": 85.61,
+        "ton": 71.95
+       },
+       "success": false
+      },
+      {
+       "seq": 13,
+       "kind": "experiment",
+       "note": {
+        "en": "H1: Increasing XPhos Pd G3 loading modestly to 1.25 mol% at 100 °C and 600 s will raise yield above 86.91%, with TON remaining within the stated tolerance.",
+        "ko": "H1: 100 °C, 600 s에서 XPhos Pd G3 로딩을 1.25 mol%로 조금 늘리면 수율이 86.91%를 넘고 TON은 명시된 허용 범위 안에 머물 것이다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 100.0,
+        "catalyst_loading": 1.25
+       },
+       "results": {
+        "yield": 86.62,
+        "ton": 69.3
+       },
+       "success": false
+      },
+      {
+       "seq": 14,
+       "kind": "experiment",
+       "note": {
+        "en": "Increasing XPhos Pd G3 loading modestly to 1.28 mol% at 100 °C and 600 s will raise yield above 86.91% while keeping TON above the tolerance-adjusted floor.",
+        "ko": "100 °C, 600 s에서 XPhos Pd G3 로딩을 1.28 mol%로 조금 늘리면 TON을 허용 오차를 반영한 하한보다 높게 유지하면서 수율이 86.91%를 넘을 것이다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 100.0,
+        "catalyst_loading": 1.28
+       },
+       "results": {
+        "yield": 86.98,
+        "ton": 67.95
+       },
+       "success": true
+      }
+     ]
+    }
+   ]
+  },
+  "product": {
+   "name": "LAB GENE",
+   "summary": {
+    "success": 4,
+    "actions": 28,
+    "consults": 4,
+    "experiments": 24
+   },
+   "episodes": [
+    {
+     "task_id": "suzuki_flow_01",
+     "outcome": "success",
+     "actions_to_success": 14,
+     "actions": [
+      {
+       "seq": 1,
+       "kind": "consult",
+       "question": {
+        "en": "For this exact Suzuki–Miyaura coupling in droplet flow (3-bromoquinoline, the stated isoxazole boronic ester, DBU, THF/water), which listed Pd precatalyst and temperature, residence time, and catalyst loading are most promising for meeting both the yield and TON targets?",
+        "ko": "droplet flow에서 수행하는 바로 이 Suzuki–Miyaura coupling(3-bromoquinoline, 명시된 isoxazole boronic ester, DBU, THF/water)에서, 나열된 Pd precatalyst 중 어떤 것과 어떤 온도, 체류 시간, 촉매 로딩이 수율과 TON 목표를 모두 달성하는 데 가장 유망한가?"
+       },
+       "answer": {
+        "en": "Start with XPhos Pd G3 at 100 °C, 300 s residence time, and 1.20 mol% catalyst loading. The catalyst choice is supported by analogous Suzuki–Miyaura studies, but the temperature and residence time are reasoned starting points, not established optima for this exact reaction.",
+        "ko": "XPhos Pd G3, 100 °C, 체류 시간 300 s, 촉매 로딩 1.20 mol%로 시작하라. 촉매 선택은 유사한 Suzuki–Miyaura 연구로 뒷받침되지만, 온도와 체류 시간은 추론으로 정한 출발점일 뿐 바로 이 반응에 대해 확립된 최적값은 아니다."
+       },
+       "cited": [
+        {
+         "id": "doc:palladacycle_precatalyst_design#12",
+         "title": "Design and preparation of new palladium precatalysts for C-C and C-N cross-coupling reactions",
+         "excerpt": "As previously stated, precatalysts 6a – 6n can be rapidly generated in situ from μ-OMs dimer 5 and directly used in palladium-catalyzed reactions with activity comparable to that of the isolated precatalysts. This method could facilitate the expedient determination of optimal conditions for a pallad"
+        },
+        {
+         "id": "doc:precatalyst_activation_speciation#9",
+         "title": "Catalyst Activation and Speciation Involving DyadPalladate Precatalysts in Suzuki-Miyaura and Buchwald-Hartwig Cross-Couplings",
+         "excerpt": "Being one of the top three most utilized reactions in the pharmaceutical sector, the SMCC reaction is undoubtedly the most widely used cross-coupling reaction. 42 , 43 Thus, the SMCC represents an ideal reaction model to use for understanding the activation of the [HXPhos] 2 [Pd 2 Cl 6 ] precatalyst"
+        }
+       ]
+      },
+      {
+       "seq": 2,
+       "kind": "experiment",
+       "note": {
+        "en": "Test the consultation-recommended starting condition: XPhos Pd G3 at 100 °C, 300 s residence time, and 1.20 mol% loading may meet both yield and TON targets.",
+        "ko": "상담에서 권장된 출발 조건을 검증한다: XPhos Pd G3, 100 °C, 체류 시간 300 s, 로딩 1.20 mol%로 수율과 TON 목표를 모두 달성할 수 있을 것이다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 300.0,
+        "temperature": 100.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 47.17,
+        "ton": 39.31
+       },
+       "success": false
+      },
+      {
+       "seq": 3,
+       "kind": "experiment",
+       "note": {
+        "en": "Test whether raising temperature from 100 °C to 110 °C at the same residence time and catalyst loading improves yield.",
+        "ko": "체류 시간과 촉매 로딩을 같게 두고 온도를 100 °C에서 110 °C로 올리면 수율이 향상되는지 검증한다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 300.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 53.67,
+        "ton": 44.73
+       },
+       "success": false
+      },
+      {
+       "seq": 4,
+       "kind": "experiment",
+       "note": {
+        "en": "At 110 °C, extending residence time to 600 s may increase yield and TON beyond the 300 s result; the effect is uncertain.",
+        "ko": "110 °C에서 체류 시간을 600 s로 늘리면 수율과 TON이 300 s 결과보다 높아질 수 있다. 효과는 불확실하다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 52.11,
+        "ton": 43.42
+       },
+       "success": false
+      },
+      {
+       "seq": 5,
+       "kind": "experiment",
+       "note": {
+        "en": "At 110 °C and 1.20 mol% XPhos Pd G3, reducing residence time to 180 s may preserve or improve performance versus 300 s by limiting prolonged exposure.",
+        "ko": "110 °C, XPhos Pd G3 1.20 mol%에서 체류 시간을 180 s로 줄이면 장시간 노출이 제한되어 300 s 대비 성능을 유지하거나 개선할 수 있다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 180.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 51.25,
+        "ton": 42.71
+       },
+       "success": false
+      },
+      {
+       "seq": 6,
+       "kind": "experiment",
+       "note": {
+        "en": "At 110 °C and 300 s, XPhos Pd G2 will improve yield and TON relative to XPhos Pd G3 at the same loading.",
+        "ko": "110 °C, 300 s에서 XPhos Pd G2는 같은 로딩의 XPhos Pd G3보다 수율과 TON을 향상시킬 것이다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G2",
+        "residence_time": 300.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 21.35,
+        "ton": 17.79
+       },
+       "success": false
+      },
+      {
+       "seq": 7,
+       "kind": "experiment",
+       "note": {
+        "en": "SPhos Pd G3 may improve yield and TON over XPhos Pd G3 at the best observed conditions; treat this as a matched-condition ligand screen.",
+        "ko": "최적 관측 조건에서 SPhos Pd G3가 XPhos Pd G3보다 수율과 TON을 향상시킬 수 있다. 이는 동일 조건 ligand 스크리닝으로 다룬다."
+       },
+       "parameters": {
+        "catalyst": "SPhos Pd G3",
+        "residence_time": 300.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 29.51,
+        "ton": 24.59
+       },
+       "success": false
+      },
+      {
+       "seq": 8,
+       "kind": "experiment",
+       "note": {
+        "en": "RuPhos Pd G3 may outperform the XPhos Pd G3 benchmark under matched conditions.",
+        "ko": "동일 조건에서 RuPhos Pd G3가 XPhos Pd G3 벤치마크를 능가할 수 있다."
+       },
+       "parameters": {
+        "catalyst": "RuPhos Pd G3",
+        "residence_time": 300.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 37.77,
+        "ton": 31.47
+       },
+       "success": false
+      },
+      {
+       "seq": 9,
+       "kind": "experiment",
+       "note": {
+        "en": "At the best measured temperature and residence time, reducing XPhos Pd G3 loading to 0.90 mol% may retain enough yield to improve TON; the loading effect is unknown.",
+        "ko": "최적 측정 온도와 체류 시간에서 XPhos Pd G3 로딩을 0.90 mol%로 줄여도 충분한 수율이 유지되어 TON이 향상될 수 있다. 로딩 효과는 알려져 있지 않다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 300.0,
+        "temperature": 110.0,
+        "catalyst_loading": 0.9
+       },
+       "results": {
+        "yield": 43.94,
+        "ton": 48.82
+       },
+       "success": false
+      },
+      {
+       "seq": 10,
+       "kind": "experiment",
+       "note": {
+        "en": "At matched conditions, PtBu3 Pd G3 may outperform the XPhos Pd G3 benchmark and move both yield and TON toward their targets.",
+        "ko": "동일 조건에서 PtBu3 Pd G3가 XPhos Pd G3 벤치마크를 능가하고 수율과 TON을 모두 목표 쪽으로 끌어올릴 수 있다."
+       },
+       "parameters": {
+        "catalyst": "PtBu3 Pd G3",
+        "residence_time": 300.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 44.94,
+        "ton": 37.45
+       },
+       "success": false
+      },
+      {
+       "seq": 11,
+       "kind": "experiment",
+       "note": {
+        "en": "H1: Xantphos Pd G3 at the best observed time, temperature, and loading may improve yield over the XPhos benchmark.",
+        "ko": "H1: 최적 관측 시간, 온도, 로딩에서 Xantphos Pd G3가 XPhos 벤치마크보다 수율을 향상시킬 수 있다."
+       },
+       "parameters": {
+        "catalyst": "Xantphos Pd G3",
+        "residence_time": 300.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 64.92,
+        "ton": 54.1
+       },
+       "success": false
+      },
+      {
+       "seq": 12,
+       "kind": "experiment",
+       "note": {
+        "en": "H1: PCy3 Pd G3 may outperform the best observed catalyst under matched conditions.",
+        "ko": "H1: 동일 조건에서 PCy3 Pd G3가 최적 관측 촉매를 능가할 수 있다."
+       },
+       "parameters": {
+        "catalyst": "PCy3 Pd G3",
+        "residence_time": 300.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 30.44,
+        "ton": 25.37
+       },
+       "success": false
+      },
+      {
+       "seq": 13,
+       "kind": "experiment",
+       "note": {
+        "en": "At 240 s, Xantphos Pd G3 may retain or improve on its measured yield at 300 s; this tests its residence-time response at the best measured temperature and loading.",
+        "ko": "240 s에서 Xantphos Pd G3가 300 s에서 측정된 수율을 유지하거나 개선할 수 있다. 이는 최적 측정 온도와 로딩에서 체류 시간에 대한 반응을 검증한다."
+       },
+       "parameters": {
+        "catalyst": "Xantphos Pd G3",
+        "residence_time": 240.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 60.9,
+        "ton": 50.75
+       },
+       "success": false
+      },
+      {
+       "seq": 14,
+       "kind": "experiment",
+       "note": {
+        "en": "H1: Extending Xantphos Pd G3 residence time to 420 s at 110 °C and 1.2 mol% will raise yield toward the joint targets.",
+        "ko": "H1: 110 °C, 1.2 mol%에서 Xantphos Pd G3의 체류 시간을 420 s로 늘리면 수율이 공동 목표에 가까워질 것이다."
+       },
+       "parameters": {
+        "catalyst": "Xantphos Pd G3",
+        "residence_time": 420.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 72.19,
+        "ton": 60.16
+       },
+       "success": true
+      }
+     ]
+    },
+    {
+     "task_id": "suzuki_flow_02",
+     "outcome": "success",
+     "actions_to_success": 8,
+     "actions": [
+      {
+       "seq": 1,
+       "kind": "consult",
+       "question": {
+        "en": "For this exact Suzuki coupling in the stated DBU/THF-water flow system, what catalyst and operating conditions are the best-supported starting point for reaching both the yield and TON targets? Please recommend catalyst, residence time, temperature, and loading, and note any likely yield–TON tradeoff.",
+        "ko": "명시된 DBU/THF-water flow 시스템에서 수행하는 바로 이 Suzuki coupling에 대해, 수율과 TON 목표를 모두 달성하기 위한 가장 근거가 탄탄한 출발점은 어떤 촉매와 운전 조건인가? 촉매, 체류 시간, 온도, 로딩을 추천하고, 예상되는 수율–TON 상충 관계가 있으면 함께 적어 달라."
+       },
+       "answer": {
+        "en": "Recommended starting point: XPhos Pd G3, 600 s residence time, 100 °C, and 2.10 mol% catalyst. This is an analog-based starting point, not a measured optimum for the stated reaction.",
+        "ko": "권장 출발점: XPhos Pd G3, 체류 시간 600 s, 100 °C, 촉매 2.10 mol%. 이는 유사 사례에 근거한 출발점이며 명시된 반응에서 측정된 최적값이 아니다."
+       },
+       "cited": [
+        {
+         "id": "doc:palladacycle_precatalyst_design#12",
+         "title": "Design and preparation of new palladium precatalysts for C-C and C-N cross-coupling reactions",
+         "excerpt": "As previously stated, precatalysts 6a – 6n can be rapidly generated in situ from μ-OMs dimer 5 and directly used in palladium-catalyzed reactions with activity comparable to that of the isolated precatalysts. This method could facilitate the expedient determination of optimal conditions for a pallad"
+        },
+        {
+         "id": "doc:solvent_effects_caution#6",
+         "title": "Suzuki-Miyaura cross coupling is not an informative reaction to demonstrate the performance of new solvents",
+         "excerpt": "The results achieved in DMI across the three case studies typify the lack of an obvious solvent effect. In one instance DMI is the best performing solvent (case study 1), then the worst aside from the reactive Cyrene™ (case study 2), and then somewhere in between (case study 3). To demonstrate that "
+        }
+       ]
+      },
+      {
+       "seq": 2,
+       "kind": "experiment",
+       "note": {
+        "en": "The advised XPhos Pd G3 starting conditions will provide a useful baseline for achieving both yield and TON targets.",
+        "ko": "권고된 XPhos Pd G3 출발 조건은 수율과 TON 목표를 모두 달성하기 위한 유용한 기준선이 될 것이다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 100.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 21.47,
+        "ton": 10.22
+       },
+       "success": false
+      },
+      {
+       "seq": 3,
+       "kind": "experiment",
+       "note": {
+        "en": "H1: Raising temperature to 110 °C at fixed catalyst, residence time, and loading will improve yield and may improve TON versus the 100 °C run.",
+        "ko": "H1: 촉매, 체류 시간, 로딩을 고정하고 온도를 110 °C로 올리면 100 °C 실험 대비 수율이 향상되고 TON도 향상될 수 있다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 22.34,
+        "ton": 10.64
+       },
+       "success": false
+      },
+      {
+       "seq": 4,
+       "kind": "experiment",
+       "note": {
+        "en": "At the same maximum residence time and temperature and 2.10 mol% loading, PtBu3 Pd G3 may outperform XPhos Pd G3 for this coupling.",
+        "ko": "같은 최대 체류 시간과 온도, 2.10 mol% 로딩에서 이 coupling에 대해 PtBu3 Pd G3가 XPhos Pd G3를 능가할 수 있다."
+       },
+       "parameters": {
+        "catalyst": "PtBu3 Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 11.06,
+        "ton": 5.27
+       },
+       "success": false
+      },
+      {
+       "seq": 5,
+       "kind": "experiment",
+       "note": {
+        "en": "SPhos Pd G3 may outperform XPhos Pd G3 at matched conditions; compare catalysts at the highest tested temperature and residence time.",
+        "ko": "SPhos Pd G3는 동일 조건에서 XPhos Pd G3보다 우수한 성능을 보일 수 있다; 시험한 최고 온도와 체류 시간에서 촉매를 비교하라."
+       },
+       "parameters": {
+        "catalyst": "SPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 17.96,
+        "ton": 8.55
+       },
+       "success": false
+      },
+      {
+       "seq": 6,
+       "kind": "experiment",
+       "note": {
+        "en": "At matched operating conditions, XPhos Pd G2 may give a different yield from XPhos Pd G3; compare the two precatalysts directly.",
+        "ko": "동일한 운전 조건에서 XPhos Pd G2는 XPhos Pd G3와 다른 수율을 보일 수 있다; 두 precatalyst를 직접 비교하라."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G2",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 14.8,
+        "ton": 7.05
+       },
+       "success": false
+      },
+      {
+       "seq": 7,
+       "kind": "experiment",
+       "note": {
+        "en": "H1: RuPhos Pd G3 at 600 s, 110 °C, and 2.1 mol% will improve yield versus XPhos Pd G3 at matched conditions.",
+        "ko": "H1: 600 s, 110 °C, 2.1 mol% 조건의 RuPhos Pd G3는 동일 조건의 XPhos Pd G3 대비 수율을 향상시킬 것이다."
+       },
+       "parameters": {
+        "catalyst": "RuPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 20.87,
+        "ton": 9.94
+       },
+       "success": false
+      },
+      {
+       "seq": 8,
+       "kind": "experiment",
+       "note": {
+        "en": "PCy3 Pd G3 may improve yield and TON over XPhos Pd G3 at matched operating conditions; this is an untested catalyst comparison.",
+        "ko": "PCy3 Pd G3는 동일한 운전 조건에서 XPhos Pd G3보다 수율과 TON을 향상시킬 수 있다; 이는 아직 시험하지 않은 촉매 비교이다."
+       },
+       "parameters": {
+        "catalyst": "PCy3 Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 2.1
+       },
+       "results": {
+        "yield": 37.18,
+        "ton": 17.7
+       },
+       "success": true
+      }
+     ]
+    },
+    {
+     "task_id": "suzuki_flow_03",
+     "outcome": "success",
+     "actions_to_success": 2,
+     "actions": [
+      {
+       "seq": 1,
+       "kind": "consult",
+       "question": {
+        "en": "For the flow Suzuki coupling of 3-chloropyridine with benzofuran-2-boronic acid using DBU in THF/water, which allowed precatalyst and combination of residence time, temperature, and catalyst loading is most promising for meeting both the 85.98% yield and 71.65 TON targets?",
+        "ko": "THF/water에서 DBU를 사용하는 3-chloropyridine과 benzofuran-2-boronic acid의 flow Suzuki coupling에서, 85.98% 수율과 71.65 TON 목표를 모두 달성하기에 가장 유망한 허용 precatalyst와 체류 시간·온도·촉매 로딩 조합은 무엇인가?"
+       },
+       "answer": {
+        "en": "Recommended first trial: XPhos Pd G3, 600 s residence time, 110 °C, and 1.2 mol% catalyst loading.",
+        "ko": "권장 첫 시험: XPhos Pd G3, 체류 시간 600 s, 110 °C, 촉매 로딩 1.2 mol%."
+       },
+       "cited": [
+        {
+         "id": "doc:dialkylbiaryl_phosphine_ligands_review#15",
+         "title": "Palladium-Catalyzed Suzuki-Miyaura Cross-Coupling Reactions Employing Dialkylbiaryl Phosphine Ligands",
+         "excerpt": "Similarly, n -butanol proved to be the ideal solvent for the SMC of N -Boc-pyrrole-2-boronic acid ( B ) with aryl and heteroaryl bromides possessing a variety of functional groups ( Table 6 ); 39 in this case, however, the addition of water resulted in poor yields due to an increased production of r"
+        },
+        {
+         "id": "doc:palladacycle_precatalyst_design#12",
+         "title": "Design and preparation of new palladium precatalysts for C-C and C-N cross-coupling reactions",
+         "excerpt": "As previously stated, precatalysts 6a – 6n can be rapidly generated in situ from μ-OMs dimer 5 and directly used in palladium-catalyzed reactions with activity comparable to that of the isolated precatalysts. This method could facilitate the expedient determination of optimal conditions for a pallad"
+        }
+       ]
+      },
+      {
+       "seq": 2,
+       "kind": "experiment",
+       "note": {
+        "en": "XPhos Pd G3 at high residence time and temperature will provide enough conversion to approach both targets at 1.2 mol% loading.",
+        "ko": "높은 체류 시간과 온도에서 XPhos Pd G3는 1.2 mol% 로딩으로도 두 목표에 근접할 만큼 충분한 전환율을 제공할 것이다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 600.0,
+        "temperature": 110.0,
+        "catalyst_loading": 1.2
+       },
+       "results": {
+        "yield": 87.08,
+        "ton": 72.57
+       },
+       "success": true
+      }
+     ]
+    },
+    {
+     "task_id": "suzuki_flow_04",
+     "outcome": "success",
+     "actions_to_success": 4,
+     "actions": [
+      {
+       "seq": 1,
+       "kind": "consult",
+       "question": {
+        "en": "For this exact continuous-flow Suzuki coupling, which precatalyst and approximate temperature, residence time, and catalyst loading are most promising for jointly achieving yield ≥86.91% and TON near 72.9? What tradeoff should I prioritize in the first experiment?",
+        "ko": "이 continuous-flow Suzuki coupling에서 수율 ≥86.91%와 TON 약 72.9를 함께 달성하기에 가장 유망한 precatalyst와 대략적인 온도, 체류 시간, 촉매 로딩은 무엇인가? 첫 실험에서 어떤 트레이드오프를 우선해야 하는가?"
+       },
+       "answer": {
+        "en": "I’d start with XPhos Pd G3 at 75 °C, 300 s residence time, and 1.19 mol% catalyst loading.",
+        "ko": "XPhos Pd G3, 75 °C, 체류 시간 300 s, 촉매 로딩 1.19 mol%로 시작하겠다."
+       },
+       "cited": [
+        {
+         "id": "doc:palladacycle_precatalyst_design#10",
+         "title": "Design and preparation of new palladium precatalysts for C-C and C-N cross-coupling reactions",
+         "excerpt": "With a series of mesylate precatalysts 6 in hand, we examined their efficiency in various cross-coupling reactions. Biaryl phosphine ligand L1 (XPhos) has seen application in a broad range of transition metal-catalyzed C-C and C-N bond forming processes. 17 – 19 To test the utility of XPhos precatal"
+        },
+        {
+         "id": "doc:palladacycle_precatalyst_design#12",
+         "title": "Design and preparation of new palladium precatalysts for C-C and C-N cross-coupling reactions",
+         "excerpt": "As previously stated, precatalysts 6a – 6n can be rapidly generated in situ from μ-OMs dimer 5 and directly used in palladium-catalyzed reactions with activity comparable to that of the isolated precatalysts. This method could facilitate the expedient determination of optimal conditions for a pallad"
+        }
+       ]
+      },
+      {
+       "seq": 2,
+       "kind": "experiment",
+       "note": {
+        "en": "XPhos Pd G3 at these conditions can achieve yield ≥86.91% while keeping TON near its target.",
+        "ko": "이 조건에서 XPhos Pd G3는 TON을 목표 근처로 유지하면서 수율 ≥86.91%를 달성할 수 있다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 300.0,
+        "temperature": 75.0,
+        "catalyst_loading": 1.19
+       },
+       "results": {
+        "yield": 75.59,
+        "ton": 63.52
+       },
+       "success": false
+      },
+      {
+       "seq": 3,
+       "kind": "experiment",
+       "note": {
+        "en": "Increasing residence time from 300 s to 450 s at the baseline temperature, catalyst, and loading may improve yield enough to meet the joint targets; this effect is unverified.",
+        "ko": "기준 온도·촉매·로딩에서 체류 시간을 300 s에서 450 s로 늘리면 공동 목표를 충족할 만큼 수율이 향상될 수 있다; 이 효과는 검증되지 않았다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 450.0,
+        "temperature": 75.0,
+        "catalyst_loading": 1.19
+       },
+       "results": {
+        "yield": 77.17,
+        "ton": 64.85
+       },
+       "success": false
+      },
+      {
+       "seq": 4,
+       "kind": "experiment",
+       "note": {
+        "en": "At 450 s and 1.19 mol% XPhos Pd G3, raising the temperature from 75 °C to 95 °C will improve yield; this tests temperature while holding the other settings at obs:a003 values.",
+        "ko": "450 s, 1.19 mol% XPhos Pd G3에서 온도를 75 °C에서 95 °C로 올리면 수율이 향상될 것이다; 이는 나머지 설정을 obs:a003 값으로 고정한 채 온도를 시험한다."
+       },
+       "parameters": {
+        "catalyst": "XPhos Pd G3",
+        "residence_time": 450.0,
+        "temperature": 95.0,
+        "catalyst_loading": 1.19
+       },
+       "results": {
+        "yield": 87.23,
+        "ton": 73.3
+       },
+       "success": true
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

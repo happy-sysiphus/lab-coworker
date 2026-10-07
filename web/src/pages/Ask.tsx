@@ -3,6 +3,7 @@ import { CircleCheck, Info, TriangleAlert } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { bannerKey, CARD_KIND_LABEL, cardLink, modeNote } from "../ask";
+import { stageLabel } from "../flow";
 import ChatPane from "../components/ChatPane";
 import RecordCard from "../components/RecordCard";
 import { MobileBar, MobileTabs } from "../nav";
@@ -22,6 +23,7 @@ export default function Ask() {
   const nav = useNavigate();
   const [session, setSession] = useState<Session | null>(() => getSession(sid ?? "") ?? null);
   const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"chat" | "panel">("chat");
   const started = useRef(false);
@@ -34,8 +36,24 @@ export default function Ask() {
   async function runAsk(s: Session, text: string) {
     setBusy(true);
     setError(null);
+    setStage(null);
+    // 실행 id를 먼저 만들어 보내고, 기다리는 동안 실행 기록의 마지막 단계를 띄운다
+    const runId = globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+    let done = false;
+    let last = 0;
+    void (async () => {
+      while (!done) {
+        await new Promise((r) => setTimeout(r, 1500));
+        if (done) break;
+        try {
+          const r = await api.flowRun(runId, last);
+          const e = r.events[r.events.length - 1];
+          if (e && !done) { last = e.seq; setStage(`${stageLabel(e.stage)} · ${e.summary}`); }
+        } catch { /* 아직 시작 전인 실행 */ }
+      }
+    })();
     try {
-      const result = await api.ask(text);
+      const result = await api.ask(text, runId);
       s.askResult = result;
       s.title = text.slice(0, 30);
       s.messages.push({ role: "ai", text: result.answer });
@@ -43,7 +61,9 @@ export default function Ask() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      done = true;
       setBusy(false);
+      setStage(null);
     }
   }
 
@@ -92,7 +112,7 @@ export default function Ask() {
           </div>
         )}
         <div className={`min-h-0 flex-1 ${tab === "chat" ? "" : "hidden md:block"}`}>
-          <ChatPane messages={session.messages} busy={busy}
+          <ChatPane messages={session.messages} busy={busy} busyText={stage ? `${stage} …` : undefined}
             placeholder="추가 질문을 입력하세요"
             onSend={(t) => {
               session.messages.push({ role: "user", text: t });
@@ -114,6 +134,12 @@ export default function Ask() {
             <div className="text-sm text-slate-400">관련 레코드 없음</div>
           )}
         </div>
+        {result?.run_id && (
+          <button onClick={() => nav(`/flow?run=${result.run_id}`)}
+            className="mt-4 text-sm text-blue-600 underline-offset-2 hover:underline">
+            이 답이 만들어진 과정 보기
+          </button>
+        )}
         {cards.length > 0 && (
           <div className="mt-5">
             <div className="text-xs text-slate-400">근거 카드</div>

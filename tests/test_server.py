@@ -151,3 +151,27 @@ def test_kg_rebuild_endpoint(client):
     save_record(vault, ExperimentRecord(id="2026-08-01_a-001", date="2026-08-01"), "원문", "s")
     out = c.post("/api/kg/rebuild").json()
     assert out["records"] == 1 and out["claims"] == 0
+
+
+def test_flow_runs_list_and_events_after(client):
+    from horcrux import trace
+    c, vault = client
+    rid = trace.start(vault, "ask", "질문 하나")
+    trace.event(vault, rid, "p3.link", "ok", "연결")
+    trace.event(vault, rid, "p3.answer", "ok", "답변")
+    runs = c.get("/api/flow/runs").json()["runs"]
+    assert runs[0]["run_id"] == rid and runs[0]["n_events"] == 2 and runs[0]["kind"] == "ask"
+    got = c.get(f"/api/flow/runs/{rid}?after=1").json()
+    assert got["run"]["status"] == "running" and [e["stage"] for e in got["events"]] == ["p3.answer"]
+    assert c.get("/api/flow/runs/없는-실행").status_code == 404
+
+
+def test_feedback_run_goes_straight_to_graph(client):
+    from horcrux import trace
+    c, vault = client
+    save_record(vault, ExperimentRecord(id="2026-08-01_a-001", date="2026-08-01"), "원문", "s")
+    c.post("/api/feedback", json={"record_id": "2026-08-01_a-001", "resolved": True, "cause": "protodeboronation"})
+    run = next(r for r in trace.list_runs(vault) if r["kind"] == "feedback")
+    stages = [e["stage"] for e in trace.get_run(vault, run["run_id"])["events"]]
+    assert stages == ["fb.feedback", "p2.store"]   # 워크플로 뷰의 "피드백 → 지식 그래프" 되먹임 선
+

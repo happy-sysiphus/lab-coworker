@@ -4,6 +4,7 @@ import { AuthProvider, resolveRoute, useAuth } from "./auth";
 import Sidebar from "./components/Sidebar";
 import { NavProvider } from "./nav";
 import Ask from "./pages/Ask";
+import Flow from "./pages/Flow";
 import FollowUp from "./pages/FollowUp";
 import Graph from "./pages/Graph";
 import Home from "./pages/Home";
@@ -47,6 +48,7 @@ export default function App() {
             <Route path="/ask/:sid" element={<BySid><Ask /></BySid>} />
             <Route path="/preview/:sid" element={<Preview />} />
             <Route path="/graph" element={<Graph />} />
+            <Route path="/flow" element={<Flow />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/notes/:id" element={<Notes />} />
             <Route path="/followup/:sid" element={<BySid><FollowUp /></BySid>} />
