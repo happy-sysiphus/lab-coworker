@@ -74,3 +74,32 @@ def test_collect_orders_cards_and_respects_budget(kg_vault, monkeypatch):
     assert hits["cases"] == 3
     monkeypatch.setattr(ra, "CARD_LIMIT", 3)
     assert [c["kind"] for c in ra.collect(kg_vault, voc, g, link, ra.INITIAL_TOOLS)[0]] == ["spec", "rec", "rec"]
+
+
+def _passage(vault, cid, text, page=3):
+    with kg.db(vault) as conn:
+        conn.execute("insert or ignore into doc(doc_id, kind, title, source, sha256, pages, page_range, status, error, "
+                     "created_at) values('man-x','manual','Flow manual','x.pdf','h',9,'all','done',null,0)")
+        conn.execute("insert into chunk(chunk_id, doc_id, page, seq, text, status, rounds, error) values(?,?,?,?,?,?,?,?)",
+                     (cid, "man-x", page, 1, text, "done", 0, None))
+    kg.rebuild(vault)
+
+
+def test_passages_need_two_shared_terms_when_question_links_two(kg_vault):
+    _passage(kg_vault, "man-x#1", "In the flow reactor, protodeboronation grows with temperature.")
+    _passage(kg_vault, "man-x#2", "Clean the flow reactor weekly.", page=4)
+    voc, g = _ctx(kg_vault)
+    two = ra.tool_passages(kg_vault, g, ["lg:flow_reactor", "lg:protodeboronation"])
+    assert [p["chunk_id"] for p in two] == ["man-x#1"] and two[0]["title"] == "Flow manual" and two[0]["page"] == 3
+    one = ra.tool_passages(kg_vault, g, ["lg:flow_reactor"])
+    assert {p["chunk_id"] for p in one} == {"man-x#1", "man-x#2"}
+    link = ra.link_question(voc, g, "flow reactor에서 protodeboronation이 늘어요")
+    cards, hits = ra.collect(kg_vault, voc, g, link, ra.INITIAL_TOOLS)
+    assert hits["passages"] == 1 and any(c["id"] == "psg:man-x#1" for c in cards)
+
+
+def test_query_stage_never_reads_vectors_or_fulltext_index():
+    import inspect
+    src = inspect.getsource(ra)
+    assert "chunk_fts" not in src and "load_vecs" not in src and "embed(" not in src
+

@@ -21,8 +21,8 @@ from .llm import generate, generate_parsed
 from .records import load_record, read_md, record_path
 from .vocab import TERM_KINDS, Vocabulary, canon, load_vocabulary
 
-TOOLS = ("cases", "causes", "relations", "specs", "wiki", "followups", "broader")
-INITIAL_TOOLS = ("cases", "causes", "relations", "specs", "wiki", "followups")
+TOOLS = ("cases", "causes", "relations", "specs", "passages", "wiki", "followups", "broader")
+INITIAL_TOOLS = ("cases", "causes", "relations", "specs", "passages", "wiki", "followups")
 CARD_LIMIT, CHAR_LIMIT = 15, 12000
 CARD_ORDER = ("spec", "rec", "cause", "clm", "path", "psg", "fu", "wiki", "web")   # 예산이 넘치면 앞에서부터 남긴다
 CATEGORY_KO = {"low_value": "값낮음", "unstable": "불안정", "abnormal": "비정상"}   # absorb 실패모드 이름 규칙
@@ -237,6 +237,29 @@ def tool_wiki(vault: Path, vocab: Vocabulary, g: kg.Graph, terms: list[str], exp
     return out
 
 
+def tool_passages(vault: Path, g: kg.Graph, terms: list[str], limit: int = 3) -> list[dict]:
+    """연결 용어로 MENTIONS된 매뉴얼·웹 원문. 점수 = 서로 다른 연결 용어 수, 연결 용어가 둘 이상이면 2 이상만.
+
+    본문은 passage 노드를 거쳐 chunk.text에서만 읽는다(벡터·전문 색인은 읽지 않는다)."""
+    shared: dict[str, set[str]] = {}
+    for t in terms:
+        for rel, src, _ in g.inn.get(t, []):
+            if rel == "MENTIONS" and src.startswith("psg:"):
+                shared.setdefault(src, set()).add(t)
+    need = 2 if len(terms) >= 2 else 1
+    ranked = sorted((p for p, s in shared.items() if len(s) >= need), key=lambda p: (-len(shared[p]), p))[:limit]
+    out = []
+    with kg.db(vault) as conn:
+        for p in ranked:
+            r = conn.execute("select c.text, c.page, d.title, d.doc_id, d.kind, d.source from chunk c join doc d "
+                             "using(doc_id) where c.chunk_id=?", (p[4:],)).fetchone()
+            if r:
+                out.append({"chunk_id": p[4:], "doc_id": r["doc_id"], "title": r["title"], "page": r["page"],
+                            "text": r["text"], "url": r["source"] if r["kind"] == "web" else None,
+                            "terms": sorted(shared[p])})
+    return out
+
+
 def tool_followups(g: kg.Graph, exps: list[str]) -> list[dict]:
     out, seen = [], set()
     for e in exps:
@@ -329,6 +352,13 @@ def collect(vault: Path, vocab: Vocabulary, g: kg.Graph, link: Linking, tools, s
         hits["wiki"] = len(ws)
         cards += [{"id": f"wiki:{w['id']}", "kind": "wiki", "title": f"위키 · {w['name']}",
                    "text": w["body"][:1500], "source": {"wiki": w["id"]}} for w in ws]
+    if "passages" in tools:
+        ps = tool_passages(vault, g, terms)
+        hits["passages"] = len(ps)
+        cards += [{"id": f"psg:{p['chunk_id']}", "kind": "psg", "title": f"원문 · {p['title']} p.{p['page']}",
+                   "text": p["text"][:1200],
+                   "source": {"doc_id": p["doc_id"], "page": p["page"], "chunk_id": p["chunk_id"], "url": p["url"]}}
+                  for p in ps]
     if "followups" in tools:
         fs = tool_followups(g, exps)
         hits["followups"] = len(fs)
@@ -360,7 +390,7 @@ _SECTIONS = ("유사 사례", "원인 후보", "확인 방법")
 REFORM_SYSTEM = """연구실 지식 그래프 검색을 돕는다. 질문을 그래프 용어로 다시 구성하라.
 - term_ids: 질문과 관련된 용어 id를 아래 어휘 목록에서만 고른다. 목록에 없는 id를 만들지 마라.
   한국어 표현(예: 수율, 체류 시간)도 의미가 같은 영어 라벨의 id로 대응시킨다.
-- tools: 다음 중에서 고른다 — cases(유사 실험), causes(원인 집계), relations(승인 관계), specs(허용·권장 범위),
+- tools: 다음 중에서 고른다 — cases(유사 실험), causes(원인 집계), relations(승인 관계), specs(허용·권장 범위), passages(매뉴얼 원문),
   wiki(위키 아티클), followups(후속 실험의 조건 변화), broader(상위 개념으로 넓히기).
 - unknown: 질문에 나오지만 어휘 어디에도 대응하지 않는 대상(물질·장비·지표 이름). 대응시킨 것은 넣지 마라.
 - symptom: 질문이 말하는 문제 유형. low_value(값이 낮음), unstable(불안정·재현성), abnormal(비정상 거동),
