@@ -46,6 +46,14 @@ def _sync_quietly(cfg, record_id: str) -> None:
         print(f"(KG 동기화 실패 — 'horcrux kg rebuild'로 재시도: {e})")
 
 
+def _print_build(st: dict) -> None:
+    if st.get("busy"):
+        print("이미 구축 작업이 돌고 있습니다.")
+        return
+    print(f"질문 {st.get('questions', 0) + st.get('record_questions', 0)}개, 자동 승인 {st.get('auto', 0)}개, "
+          f"실패 묶음 {st.get('errors', 0)}개 — 웹의 '검토' 화면에서 답하세요")
+
+
 def _run_ontology(cfg, action: str, ids: list[str]) -> None:
     from .config import load_vault_config
     from .vocab import active_domain, load_domains, select_domains
@@ -86,7 +94,11 @@ def main(argv: list[str] | None = None) -> None:
     sv.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8765)))
     sub.add_parser("init", help="설정 마법사 (~/.horcrux/config.yaml 생성)")
     kgp = sub.add_parser("kg", help="지식 그래프 재구축·상태")
-    kgp.add_argument("action", choices=["rebuild", "status"])
+    kgp.add_argument("action", choices=["rebuild", "status", "build"])
+    mp = sub.add_parser("manual", help="장비 매뉴얼 PDF를 추가하고 지식 후보를 구축")
+    mp.add_argument("action", choices=["add"])
+    mp.add_argument("path", help="텍스트 PDF 경로")
+    mp.add_argument("--pages", default=None, help="쪽 범위 예: 12-40")
     on = sub.add_parser("ontology", help="연구 도메인 목록·선택")
     on.add_argument("action", choices=["domains", "use"])
     on.add_argument("ids", nargs="*", help="use: 고를 도메인 id들")
@@ -122,6 +134,19 @@ def main(argv: list[str] | None = None) -> None:
         elif args.cmd == "seed":
             from .seed import run_seed
             run_seed(cfg, args.n)
+        elif args.cmd == "manual":
+            from . import manual, ontology_agent, trace
+            src = Path(args.path)
+            run = trace.start(cfg.vault, "manual", src.name)
+            try:
+                out = manual.add_manual(cfg.vault, src.name, src.read_bytes(), args.pages, run)
+            except ValueError as e:
+                raise RuntimeError(str(e)) from None
+            print(f"문서 {out['doc_id']}" + ("" if out["created"] else " (이미 등록됨)") + " — 지식 구축 중…")
+            _print_build(ontology_agent.build(cfg, run_id=run, doc_id=out["doc_id"]))
+        elif args.cmd == "kg" and args.action == "build":
+            from . import ontology_agent
+            _print_build(ontology_agent.build(cfg))
         elif args.cmd == "kg":
             from . import kg
             if args.action == "rebuild":

@@ -9,11 +9,11 @@ from dataclasses import dataclass, replace
 from datetime import date as _date
 from pathlib import Path
 
-from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import kg, trace
+from . import kg, manual, ontology_agent, review, trace
 from .absorb import run_absorb
 from .auth import AuthCtx, verify_token
 from .config import Config, load_vault_config
@@ -96,6 +96,20 @@ class DomainsIn(BaseModel):
     domains: list[str]
 
 
+class BuildIn(BaseModel):
+    doc_id: str | None = None
+
+
+class AnswerIn(BaseModel):
+    action: str
+    reason_code: str | None = None
+    edit: dict | None = None
+
+
+class BulkIn(BaseModel):
+    qids: list[str]
+
+
 class AskIn(BaseModel):
     text: str
     run_id: str | None = None   # 클라이언트가 만든 실행 id — 대기 중 진행 단계를 읽는 데 쓴다
@@ -130,7 +144,8 @@ class SettingsIn(BaseModel):
     rotate_invite: bool = False
 
 
-def _sync_quietly(cfg: Config, record_id: str, run_id: str | None, normalize: bool = True) -> None:
+def _sync_quietly(cfg: Config, record_id: str, run_id: str | None, normalize: bool = True,
+                  finish: bool = True) -> None:
     """레코드 하나를 그래프에 반영하고 실행 기록을 닫는다. 실패해도 저장은 이미 확정 — 경고만 남긴다.
 
     normalize=False(피드백)는 정규화 단계를 따로 남기지 않는다 — 워크플로 뷰의 "피드백 → 지식 그래프" 선."""
@@ -140,13 +155,14 @@ def _sync_quietly(cfg: Config, record_id: str, run_id: str | None, normalize: bo
         if normalize:
             trace.event(cfg.vault, run_id, "p2.normalize", "ok", counts, c)
         trace.event(cfg.vault, run_id, "p2.store", "ok", "지식 그래프 반영" if normalize else f"지식 그래프 반영 · {counts}")
-        trace.finish(cfg.vault, run_id)
+        if finish:
+            trace.finish(cfg.vault, run_id)
     except Exception as e:
         print(f"(KG 동기화 실패 — 'horcrux kg rebuild'로 재시도: {e})")
         trace.finish(cfg.vault, run_id, "failed")
 
 
-def _after_save(cfg: Config, lock: threading.Lock, record_id: str, run_id: str | None) -> None:
+def _after_save(cfg: Config, lock: threading.Lock, record_id: str, run_id: str | None, budget=None) -> None:
     try:
         with lock:
             n = run_absorb(cfg)
@@ -155,7 +171,19 @@ def _after_save(cfg: Config, lock: threading.Lock, record_id: str, run_id: str |
         print(f"(위키 편찬 실패 — 'horcrux absorb'로 재시도: {e})")
         trace.event(cfg.vault, run_id, "p1.wiki", "fail", f"위키 편찬 실패: {e}")
     with lock:
-        _sync_quietly(cfg, record_id, run_id)
+        _sync_quietly(cfg, record_id, run_id, finish=False)
+    try:   # 미연결 표기가 있으면 용어 후보 선택 1회 — LLM은 락 밖, 쓰기는 락 안
+        ontology_agent.record_candidates(cfg, run_id, lock, budget)
+    except Exception as e:
+        print(f"(용어 후보 선택 실패 — 승인 화면의 '이어서'로 재시도: {e})")
+    trace.finish(cfg.vault, run_id)
+
+
+def _build_quietly(cfg: Config, lock: threading.Lock, run_id: str, doc_id: str | None, budget=None) -> None:
+    try:
+        ontology_agent.build(cfg, lock, run_id, doc_id, budget)
+    except Exception as e:
+        print(f"(지식 구축 실패 — 승인 화면의 '이어서'로 재시도: {e})")
 
 
 def _meta(rec) -> dict:
@@ -240,6 +268,19 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
     def lab_lock(ctx: AuthCtx | None) -> threading.Lock:
         return _locks[ctx.lab["id"] if (deploy and ctx and ctx.lab) else "local"]
 
+    def build_budget(ctx: AuthCtx | None):
+        """구축·후보 선택 LLM 호출마다 사용량을 센다. 한도에 닿으면 문서를 paused로 둔다."""
+        if deploy is None or ctx is None:
+            return None
+
+        def bump() -> None:
+            if not deploy.db.bump_usage(ctx.lab["id"], ctx.lab["daily_llm_limit"]):
+                raise ontology_agent.BudgetExceeded("오늘 사용량 한도를 초과했습니다")
+        return bump
+
+    def reviewer(ctx: AuthCtx | None) -> str:
+        return ctx.user_id if ctx is not None else "local"
+
     def check_usage(ctx: AuthCtx | None) -> None:
         if deploy is None or ctx is None:
             return
@@ -275,7 +316,7 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
         run_id = trace.start(c.vault, "record", rec.id)
         trace.event(c.vault, run_id, "p1.parse", "ok", f"구조화 완료, 재질문 {len(inp.qa)}개")
         trace.event(c.vault, run_id, "p1.save", "ok", f"{rec.id} 저장")
-        bg.add_task(_after_save, c, lab_lock(ctx), rec.id, run_id)
+        bg.add_task(_after_save, c, lab_lock(ctx), rec.id, run_id, build_budget(ctx))
         return {"id": rec.id, "path": str(path), "run_id": run_id}
 
     @app.post("/api/records/raw")
@@ -405,6 +446,81 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
             trace.event(c.vault, run_id, "p2.context", "ok", "공통 어휘를 연결 기준과 추출 문맥으로 사용")
             trace.finish(c.vault, run_id)
         return {"domains": chosen, "notice": notice, "run_id": run_id}
+
+    @app.put("/api/manuals/{filename}")
+    async def api_manual_upload(filename: str, request: Request, bg: BackgroundTasks, pages: str | None = None,
+                                ctx=Depends(require_lab)):
+        data = await request.body()
+        if not data:
+            raise HTTPException(400, "빈 파일입니다")
+        c = lab_cfg(ctx)
+        run_id = trace.start(c.vault, "manual", filename)
+        try:
+            out = manual.add_manual(c.vault, filename, data, pages, run_id)
+        except ValueError as e:
+            trace.event(c.vault, run_id, "p1.text", "fail", str(e))
+            trace.finish(c.vault, run_id, "failed")
+            raise HTTPException(400, str(e)) from None
+        if not out["created"]:
+            trace.event(c.vault, run_id, "p1.save", "info", f"이미 등록된 문서 {out['doc_id']} — 남은 청크를 이어서 처리")
+        bg.add_task(_build_quietly, c, lab_lock(ctx), run_id, out["doc_id"], build_budget(ctx))
+        return {"doc_id": out["doc_id"], "created": out["created"], "run_id": run_id}
+
+    @app.post("/api/kg/build")
+    def api_kg_build(inp: BuildIn, bg: BackgroundTasks, ctx=Depends(require_lab)):
+        c = lab_cfg(ctx)
+        run_id = trace.start(c.vault, "manual", "지식 구축 이어서")
+        bg.add_task(_build_quietly, c, lab_lock(ctx), run_id, inp.doc_id, build_budget(ctx))
+        return {"run_id": run_id}
+
+    @app.get("/api/kg/status")
+    def api_kg_status(ctx=Depends(require_lab)):
+        c = lab_cfg(ctx)
+        st = review.status(c.vault)
+        busy = ontology_agent.is_running(c.vault)
+        for d in st["docs"]:   # 기동 전에 running으로 남은 문서는 멈춘 것이다 — '이어서'로 재개
+            if d["status"] == "running" and not busy:
+                d["status"] = "paused"
+        return {**st, "building": busy}
+
+    @app.get("/api/kg/questions")
+    def api_questions(tab: str | None = None, status: str = "open", ctx=Depends(require_lab)):
+        c = lab_cfg(ctx)
+        if tab == "auto":
+            return {"questions": [], "auto": review.auto_items(c.vault)}
+        return {"questions": review.list_questions(c.vault, tab, status)}
+
+    @app.post("/api/kg/questions/bulk-accept")
+    def api_bulk_accept(inp: BulkIn, ctx=Depends(require_lab)):
+        c = lab_cfg(ctx)
+        with lab_lock(ctx):
+            return {"answered": review.bulk_accept(c, inp.qids, reviewer(ctx))}
+
+    @app.get("/api/kg/questions/{qid}")
+    def api_question(qid: str, ctx=Depends(require_lab)):
+        c = lab_cfg(ctx)
+        q = review.get_question(c.vault, qid)
+        if q is None:
+            raise HTTPException(404, "질문을 찾을 수 없습니다")
+        return {**q, "source": review.source_card(c.vault, q)}
+
+    @app.post("/api/kg/questions/{qid}/answer")
+    def api_answer(qid: str, inp: AnswerIn, ctx=Depends(require_lab)):
+        c = lab_cfg(ctx)
+        with lab_lock(ctx):
+            try:
+                return review.answer(c, qid, inp.action, inp.reason_code, inp.edit, reviewer(ctx))
+            except review.AnswerError as e:
+                raise HTTPException(400, str(e)) from None
+
+    @app.post("/api/kg/items/{item_id}/revoke")
+    def api_revoke(item_id: str, ctx=Depends(require_lab)):
+        c = lab_cfg(ctx)
+        with lab_lock(ctx):
+            try:
+                return review.revoke(c, item_id, reviewer(ctx))
+            except review.AnswerError as e:
+                raise HTTPException(400, str(e)) from None
 
     @app.get("/api/flow/runs")
     def api_flow_runs(limit: int = 30, ctx=Depends(require_lab)):

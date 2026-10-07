@@ -90,3 +90,24 @@ def test_log_syncs_graph_after_save(tmp_path, monkeypatch):
     cli.main(["log"])
     assert ("USES_EQUIPMENT", "lg:flow_reactor") in {
         (r, d) for r, d, _ in kg.load_graph(tmp_path).out["exp:2026-09-29_a-001"]}
+
+
+def test_cli_manual_add_and_kg_build(tmp_path, monkeypatch, capsys):
+    import importlib.util
+    from pathlib import Path
+    from horcrux import ontology_agent as oa
+    spec = importlib.util.spec_from_file_location(
+        "make_demo_manual", Path(__file__).resolve().parents[1] / "scripts" / "make_demo_manual.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    pdf = tmp_path / "ops.pdf"
+    pdf.write_bytes(mod.pdf_bytes([["Limits", "", "The flow reactor temperature must stay between 30 and 110 °C."]]))
+    monkeypatch.setenv("HORCRUX_VAULT", str(tmp_path / "v"))
+    monkeypatch.setattr(oa, "generate_parsed", lambda cfg, s, u, schema: oa.XOut() if schema is oa.XOut else oa.Choices())
+    monkeypatch.setattr(oa, "embed", lambda texts, kind: None)
+    cli.main(["manual", "add", str(pdf)])
+    out = capsys.readouterr().out
+    assert "man-ops" in out and "질문 0개" in out
+    cli.main(["kg", "build"])
+    assert "질문 0개" in capsys.readouterr().out
+

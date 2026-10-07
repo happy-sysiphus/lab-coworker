@@ -120,6 +120,23 @@ def status(vault: Path) -> dict:
     return {"docs": docs, "tabs": tabs, "open": sum(open_.values())}
 
 
+def source_card(vault: Path, q: dict) -> dict:
+    """승인 화면 맨 위의 원문 카드 — 매뉴얼은 문서명·쪽·청크 원문과 인용, 레코드는 기록 목록."""
+    ctx = q.get("context") or {}
+    src = ctx.get("source") or {}
+    if src.get("chunk_id"):
+        with kg.db(vault) as conn:
+            r = conn.execute("select c.text, c.page, d.title, d.kind, d.source from chunk c join doc d "
+                             "using(doc_id) where c.chunk_id=?", (src["chunk_id"],)).fetchone()
+        if r:
+            return {"kind": "web" if r["kind"] == "web" else "manual", "title": r["title"], "page": r["page"],
+                    "text": r["text"], "quote": src.get("quote") or "", "url": r["source"] if r["kind"] == "web" else None,
+                    "chunk_id": src["chunk_id"]}
+    if src.get("records"):
+        return {"kind": "record", "records": src["records"], "text": "; ".join(ctx.get("contexts") or [])}
+    return {"kind": "none"}
+
+
 # ---------------------------------------------------------------- 문장 템플릿 (질문을 만드는 LLM 호출은 없다)
 def _label(vocab: Vocabulary, tid: str | None, fallback: str = "") -> str:
     return vocab.label(tid) if tid and tid in vocab.terms else (fallback or str(tid or ""))

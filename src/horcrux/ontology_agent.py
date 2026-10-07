@@ -686,6 +686,10 @@ def build(cfg: Config, lock=None, run_id: str | None = None, doc_id: str | None 
         _running.discard(key)
 
 
+def is_running(vault: Path) -> bool:
+    return str(Path(vault).resolve()) in _running
+
+
 def pause_running(vault: Path) -> None:
     """서버 기동 시 running으로 남은 문서를 paused로 바꾼다 — '이어서'로 재개한다."""
     with kg.db(vault) as conn:

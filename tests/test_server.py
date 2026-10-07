@@ -191,3 +191,57 @@ def test_domains_get_and_select_records_ontology_run(client):
     assert stages == ["common.select", "common.pull", "p2.context"]
     assert c.put("/api/ontology/domains", json={"domains": ["nope"]}).status_code == 400
 
+
+def _demo_pdf(pages):
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location(
+        "make_demo_manual", Path(__file__).resolve().parents[1] / "scripts" / "make_demo_manual.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.pdf_bytes(pages, "Ops")
+
+
+def test_manual_upload_builds_questions_and_answers_them(client, monkeypatch):
+    from horcrux import ontology_agent as oa
+    c, vault = client
+    text = "The flow reactor temperature must stay between 30 and 110 °C. Keep THF dry before every run."
+    out = oa.XOut(chunks=[oa.XChunk(chunk_id="man-ops#1", claims=[oa.XClaim(
+        subject="temperature", predicate="spec_range", object="flow reactor", spec_kind="allowed",
+        quote="The flow reactor temperature must stay between 30 and 110 °C.",
+        conditions=oa.XCond(range={"°C": [30, 110]}))])])
+    monkeypatch.setattr(oa, "generate_parsed", lambda cfg, s, u, schema: out if schema is oa.XOut else oa.Choices())
+    monkeypatch.setattr(oa, "embed", lambda texts, kind: None)
+    r = c.put("/api/manuals/ops.pdf?pages=1", content=_demo_pdf([["Limits", "", text]]),
+              headers={"Content-Type": "application/pdf"})
+    assert r.status_code == 200 and r.json()["doc_id"] == "man-ops" and r.json()["created"]
+    st = c.get("/api/kg/status").json()
+    assert st["docs"][0]["status"] == "done" and st["tabs"]["spec"]["open"] == 1 and st["open"] == 1
+    qs = c.get("/api/kg/questions?tab=spec").json()["questions"]
+    detail = c.get(f"/api/kg/questions/{qs[0]['qid']}").json()
+    assert detail["source"]["kind"] == "manual" and detail["source"]["page"] == 1
+    assert "30 and 110" in detail["source"]["text"] and detail["source"]["title"] == "Ops"
+    ans = c.post(f"/api/kg/questions/{qs[0]['qid']}/answer", json={"action": "accept"}).json()
+    assert ans["verdict"] == "verified" and ans["run_id"]
+    assert c.post(f"/api/kg/questions/{qs[0]['qid']}/answer", json={"action": "accept"}).status_code == 400
+    assert c.put("/api/manuals/bad.pdf", content=b"nope", headers={"Content-Type": "application/pdf"}).status_code == 400
+    assert c.post("/api/kg/items/없음/revoke").status_code == 400
+    runs = {r["kind"] for r in c.get("/api/flow/runs").json()["runs"]}
+    assert {"manual", "approval"} <= runs
+
+
+def test_record_save_asks_about_unlinked_strings(client, monkeypatch):
+    from horcrux import ontology_agent as oa
+    c, vault = client
+    monkeypatch.setattr(oa, "generate_parsed", lambda cfg, s, u, schema: oa.Choices(choices=[
+        oa.Choice(surface="SPhos Pd G4", choice="NEW", new_term=oa.NewTerm(label="SPhos Pd G4", kind="material"))]))
+    monkeypatch.setattr(oa, "embed", lambda texts, kind: None)
+    parsed = ParsedLog(experiment_type="Suzuki-Miyaura coupling", materials=["SPhos Pd G4"],
+                       objective="o", results="r", summary="요약").model_dump()
+    r = c.post("/api/records", json={"text": "원문", "parsed": parsed}).json()
+    qs = c.get("/api/kg/questions?tab=new_term").json()["questions"]
+    assert [q["context"]["surface"] for q in qs] == ["SPhos Pd G4"]
+    from horcrux import trace
+    stages = [e["stage"] for e in trace.get_run(vault, r["run_id"])["events"]]
+    assert stages[-3:] == ["p2.normalize", "p2.research", "p2.candidates"] and stages[:2] == ["p1.parse", "p1.save"]
+
