@@ -12,6 +12,7 @@ from pathlib import Path
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import kg, manual, ontology_agent, review, trace
 from .absorb import run_absorb
@@ -634,8 +635,20 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
     dist = Path(os.environ.get("HORCRUX_WEB_DIST")
                 or Path(__file__).resolve().parents[2] / "web" / "dist")
     if dist.exists():  # 빌드 전엔 API만 (개발은 vite dev + proxy)
-        app.mount("/", StaticFiles(directory=dist, html=True), name="web")
+        app.mount("/", _Spa(directory=dist, html=True), name="web")
     return app
+
+
+class _Spa(StaticFiles):
+    """/flow·/review 같은 화면 주소를 새로고침해도 index.html을 준다. /api 아래 없는 경로는 그대로 404."""
+
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as e:
+            if e.status_code != 404 or path.startswith("api") or "." in path.rsplit("/", 1)[-1]:
+                raise
+            return await super().get_response("index.html", scope)
 
 
 def run_serve(cfg: Config, host: str = "127.0.0.1", port: int = 8765) -> None:

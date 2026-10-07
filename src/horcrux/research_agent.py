@@ -555,9 +555,41 @@ def fetch_text(url: str, timeout: float = 10, limit: int = 2_000_000) -> str | N
     return " ".join(" ".join(p.parts).split())
 
 
+_TYPO = str.maketrans({"“": "'", "”": "'", "‘": "'", "’": "'", '"': "'", "–": "-", "—": "-", "‐": "-",
+                       " ": " "})
+
+
+def _norm(s: str) -> str:
+    return " ".join(s.translate(_TYPO).split()).casefold()
+
+
 def quote_found(page: str | None, quote: str) -> bool:
-    q = " ".join(str(quote or "").split()).casefold()
-    return bool(page and q and q in " ".join(page.split()).casefold())
+    """인용이 페이지에 그대로 있는가. 따옴표·대시·공백 표기 차이는 무시하고, 말줄임(… ...)으로 잘린 조각은 모두 있어야 한다."""
+    parts = [x.strip() for x in re.split(r"\.\.\.|…", _norm(str(quote or ""))) if x.strip()]
+    if not page or sum(len(x) for x in parts) < 15:
+        return False
+    p = _norm(page)
+    return all(x in p for x in parts)
+
+
+def align_quote(page: str | None, quote: str, min_ratio: float = 0.8) -> str | None:
+    """검색 결과의 인용은 원문을 조금 고쳐 쓴 경우가 많다. 페이지에서 가장 닮은 문장(1~2문장)을 찾아
+    유사도가 min_ratio 이상이면 그 원문 그대로를 돌려준다. 카드에는 이 원문이 실린다."""
+    import difflib
+    q = _norm(str(quote or ""))
+    if not page or len(q) < 15:
+        return None
+    sents = re.split(r"(?<=[.!?])\s+", page[:500_000])   # ponytail: 2문장 창까지만 본다
+    best, best_r = None, min_ratio
+    for i in range(len(sents)):
+        for win in (sents[i], " ".join(sents[i:i + 2])):
+            w = _norm(win)
+            if not 0.5 * len(q) <= len(w) <= 2 * len(q):
+                continue
+            m = difflib.SequenceMatcher(None, w, q, autojunk=False)
+            if m.real_quick_ratio() >= best_r and m.quick_ratio() >= best_r and m.ratio() >= best_r:
+                best, best_r = win.strip(), m.ratio()
+    return best
 
 
 def web_evidence(cfg: Config, question: str, focus: list[str] | None) -> tuple[list[dict], int]:
@@ -568,10 +600,17 @@ def web_evidence(cfg: Config, question: str, focus: list[str] | None) -> tuple[l
     now = time.strftime("%Y-%m-%d %H:%M")
     cards = []
     for i, (h, page) in enumerate(zip(hits, pages), 1):
-        ok = quote_found(page, h.quote)
-        cards.append({"id": f"web:{i}", "kind": "web", "title": f"웹 · {h.title or h.url}",
-                      "text": f"{h.quote}\n요약: {h.summary[:300]}\n출처: {h.url} ({'원문 확인' if ok else '확인 불가'})",
-                      "source": {"url": h.url, "title": h.title, "quote": h.quote, "summary": h.summary[:300],
+        url, title, quote = h.url, h.title, h.quote
+        ok = quote_found(page, quote)
+        if not ok and (aligned := align_quote(page, quote)):
+            quote, ok = aligned, True   # 고쳐 쓴 인용 대신 페이지 원문을 싣는다
+        elif not ok:   # 검색 결과가 인용을 다른 결과의 URL에 붙이기도 한다 — 같은 묶음의 다른 페이지에 있으면 출처를 바로잡는다
+            k = next((k for k, pg in enumerate(pages) if k != i - 1 and quote_found(pg, quote)), None)
+            if k is not None:
+                url, title, ok = hits[k].url, hits[k].title, True
+        cards.append({"id": f"web:{i}", "kind": "web", "title": f"웹 · {title or url}",
+                      "text": f"{quote}\n요약: {h.summary[:300]}\n출처: {url} ({'원문 확인' if ok else '확인 불가'})",
+                      "source": {"url": url, "title": title, "quote": quote, "summary": h.summary[:300],
                                  "verified": ok, "retrieved_at": now}})
     return cards, sum(1 for c in cards if c["source"]["verified"])
 

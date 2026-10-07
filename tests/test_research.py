@@ -183,6 +183,23 @@ def test_unseen_searches_web_with_whole_question_and_checks_quotes(kg_vault, mon
     assert "원문 확인 1개" in next(e for e in events if e["stage"] == "p3.web")["summary"]
 
 
+def test_web_cards_align_reworded_quotes_and_fix_swapped_sources(monkeypatch):
+    pages = {"https://a.test": ("Intro. In contrast, we identified MIDA boronate (1a) as the first 2-pyridyl borane that is "
+                                "both air stable and can be isolated in a chemically pure form. End."),
+             "https://b.test": "Other. The slow release of boronic acids suppresses protodeboronation and homocoupling. End."}
+    hits = [WebHit(title="A", url="https://a.test", quote=("MIDA boronate was identified as the first 2-pyridyl borane "
+                                                            "that is both air stable and can be isolated in a chemically pure form.")),
+            WebHit(title="C", url="https://c.test", quote="The slow release of boronic acids suppresses protodeboronation"),
+            WebHit(title="B", url="https://b.test", quote="Slow release is a widely used strategy in many labs")]
+    monkeypatch.setattr(ra, "web_search", lambda cfg, q, focus=None: hits)
+    monkeypatch.setattr(ra, "fetch_text", lambda url, *a, **k: pages.get(url))
+    cards, verified = ra.web_evidence(Config(vault="v"), "질문", None)
+    a, c, b = (x["source"] for x in cards)
+    assert a["verified"] and a["quote"].startswith("In contrast, we identified MIDA boronate (1a)")   # 페이지 원문으로 교체
+    assert c["verified"] and c["url"] == "https://b.test"                                           # 출처 바로잡기
+    assert not b["verified"] and verified == 2                                                      # 고쳐 쓴 말은 확인 불가
+
+
 def test_partial_web_focuses_on_unknown_and_keeps_internal_cards(kg_vault, monkeypatch):
     seen = []
     _web(monkeypatch, seen)
@@ -238,4 +255,8 @@ def test_fetch_text_strips_scripts_and_skips_pdf(monkeypatch):
     monkeypatch.setattr(ra.urllib.request, "urlopen", lambda req, timeout: _Resp(b"%PDF-1.4", "application/pdf"))
     assert REAL_FETCH("https://x.test/a.pdf") is None
     assert REAL_FETCH("file:///etc/passwd") is None
-    assert ra.quote_found("A  b C", "a B") and not ra.quote_found(None, "a") and not ra.quote_found("a", "")
+    page = "The “masking” reagent protects the vulnerable boronic acid – slowly. Later text follows here."
+    assert ra.quote_found(page, "The 'masking'  reagent protects the vulnerable boronic acid - slowly")
+    assert ra.quote_found(page, "The masking ... nope") is False
+    assert ra.quote_found(page, "reagent protects the vulnerable… Later text follows")
+    assert not ra.quote_found(None, "reagent protects the vulnerable") and not ra.quote_found(page, "acid")

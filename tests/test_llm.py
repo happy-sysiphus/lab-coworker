@@ -314,9 +314,16 @@ def test_web_search_claude_uses_only_web_tools(fake_run):
     hits = llm.web_search(Config(vault="v", provider="claude"), "질문", ["SPhos Pd G4"])
     assert [(h.title, h.url) for h in hits] == [("T", "https://x.org/a")]
     cmd, prompt, _ = fake_run.calls[0]
-    assert cmd == ["/bin/claude", "-p", "--tools", "WebSearch", "WebFetch", "--allowedTools", "WebSearch",
-                   "WebFetch", "--strict-mcp-config"]
+    assert cmd == ["/bin/claude", "-p", "--tools", "WebSearch", "--allowedTools", "WebSearch", "--strict-mcp-config"]
     assert "SPhos Pd G4" in prompt and "질문" in prompt
+
+
+def test_web_search_retries_once_on_broken_json(fake_run):
+    outs = iter(['{"results": [{"title": "say "hi"", "url": "u"}]}',
+                 '{"results": [{"title": "T", "url": "https://x.org/a"}]}'])
+    fake_run.out = lambda cmd: next(outs)
+    hits = llm.web_search(Config(vault="v", provider="claude"), "질문")
+    assert [h.url for h in hits] == ["https://x.org/a"] and len(fake_run.calls) == 2
 
 
 def test_web_search_unsupported_providers(fake_run):
