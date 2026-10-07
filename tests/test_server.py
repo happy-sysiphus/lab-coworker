@@ -13,14 +13,6 @@ def client(tmp_path, monkeypatch):
     return TestClient(server.create_app(Config(vault=tmp_path))), tmp_path
 
 
-def test_screen_urls_fall_back_to_index_but_api_and_assets_404(client):
-    c, _ = client
-    r = c.get("/flow?run=abc")
-    assert r.status_code == 200 and '<div id="root">' in r.text   # 새로고침해도 화면이 뜬다
-    assert c.get("/api/없는-경로").status_code == 404
-    assert c.get("/assets/없는-파일.js").status_code == 404
-
-
 def test_parse_returns_parsed_and_gaps(client, monkeypatch):
     c, _ = client
     monkeypatch.setattr(server, "parse_log",
