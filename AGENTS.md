@@ -9,7 +9,8 @@
 저장하고, 문제 질의 시 과거 유사 사례·위키를 검색해 근거와 함께 진단을 보조한다.
 
 - 언어/스택: Python 3.10+, pydantic v2, pyyaml, pytest (src/ 레이아웃). LLM은 로컬 CLI subprocess 호출.
-- 현재 상태: **MVP 구현 완료** (Task 1~9 + 최종 리뷰 반영)
+- 현재 상태: **MVP 구현 완료** (Task 1~9 + 최종 리뷰 반영), 온톨로지 KG M1~M4 구현(2026-10-07 — M2~M4는 시연 우선으로
+  계획서 없이 진행, 원장 `.superpowers/sdd/m2-m4/progress.md`)
 
 ## 진실의 원천 문서
 
@@ -47,7 +48,11 @@
   (의미 매칭은 LLM, 게이트 판단은 코드).
 - **absorb 자동 체이닝**: log 저장 후 자동 실행(실패는 경고만 — 저장 유지), seed 끝에도
   1회. `needs_review` 레코드는 스킵. `horcrux absorb` 수동 명령은 재시도용.
-- **ask 흐름**: 사용자에게 되묻지 않는다. 내부 품질 루프만 있다 — 질문 재구성 1회(M3부터 웹 1회).
+- **ask 흐름**: 사용자에게 되묻지 않는다. 내부 품질 루프만 있다 — 질문 재구성 1회, partial·unseen이면 웹 1회
+  (`llm.web_search`, claude CLI는 WebSearch·WebFetch만 연다). 웹 카드는 자동 적재하지 않고 "지식 후보로 보내기"로만 들어간다.
+- **온톨로지 구축(M2)**: 매뉴얼 PDF·웹 발췌 → `manual.py` 청킹 → `ontology_agent.py` 추출·게이트·라우터 → `review.py`
+  질문 → 사람 승인 → overlay·claims YAML. 단위 테스트는 `generate_parsed`·`embed`·`web_search`·`fetch_text`를 막는다
+  (conftest가 웹·원문 확인을 기본으로 막는다).
   근거 라벨은 records(사례) / knowledge(지식만) / web / none과 mode(seen·partial·unseen).
 - 환경변수는 3개뿐: `HORCRUX_VAULT`(기본 `example-vault`), `HORCRUX_PROVIDER`, `HORCRUX_MODEL`.
 - **서버 배포 모드(옵트인)**: `SUPABASE_URL` 설정 시 `create_app(cfg, deploy=...)`가 Supabase

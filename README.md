@@ -52,8 +52,18 @@ horcrux absorb        # 위키 재편찬 (log/seed가 자동 실행 — 실패 �
 horcrux feedback <id> --resolved y --cause "타겟 산화"   # 결과 피드백
 horcrux serve         # 웹 UI (LAB GENE) — http://127.0.0.1:8765
 horcrux kg rebuild|status   # 지식 그래프 재구축·상태 (kg.sqlite는 파생물)
+horcrux kg build            # 대기 중인 매뉴얼·웹 발췌에서 지식 후보 구축 (Claude 추출 → 게이트 → 승인 질문)
+horcrux manual add <pdf> [--pages 12-40]   # 장비 매뉴얼(텍스트 PDF) 추가 후 바로 구축
 horcrux ontology domains|use <id>...   # 연구 도메인 목록·선택 (시연: 실제 어휘는 실험 온톨로지)
+horcrux ontology pull [--url]          # 공통 온톨로지를 GitHub에서 받아 검증 후 교체
+horcrux ontology export [--out]        # 연구실 용어·별칭·승인 클레임 기여 파일 (레코드 내용은 넣지 않음)
 ```
+
+온톨로지는 만들 때만 벡터를 쓰고(선택, `GEMINI_API_KEY`가 있으면 gemini-embedding-2 — 없으면 문자열 유사도와
+전문 검색으로 대체), 질의는 그래프만 쓴다. 매뉴얼·웹 발췌에서 뽑은 관계·범위·용어는 웹의 **검토** 화면에서
+사람이 승인해야 `ontology/overlay.yaml`·`claims.yaml`에 들어간다(`requires`만 자동 승인). 연구실 기록·지식에 없는
+질문(partial·unseen)은 Claude CLI의 웹 검색을 1회 써서 웹 카드로 답하고, 웹 카드는 "지식 후보로 보내기"로 같은
+승인 흐름에 넣을 수 있다.
 
 ## 웹 UI (LAB GENE)
 
@@ -62,7 +72,9 @@ horcrux ontology domains|use <id>...   # 연구 도메인 목록·선택 (시연
     horcrux serve
 
 브라우저에서 http://127.0.0.1:8765 접속. 기록/질문/연구노트/실험 피드백/후속 실험을
-브라우저에서 수행한다 (CLI와 같은 볼트 공유).
+브라우저에서 수행한다 (CLI와 같은 볼트 공유). 시연 화면: `/domains`(연구 도메인 선택), `/review`(매뉴얼 업로드·
+승인 질문), `/flow`(워크플로 — 본실험 재생 탭과 제품 실행 탭). 시연 볼트는 `HORCRUX_VAULT=demo-vault`,
+시연용 합성 매뉴얼은 `demo/manual-flow-suzuki.pdf`다.
 개발 모드: `horcrux serve` + `cd web && npm run dev` (vite가 /api 프록시).
 
 ## 연구실 설정 (§2a)

@@ -139,7 +139,7 @@ required_parameters: [챔버 온도, 압력]   # 연구실이 반드시 기록�
 |---|---|---|
 | `config.py` | 프로그램 설정, 볼트 게이트 설정 | `Config(vault, provider, model, api_key, extra_env)`, `load_config()`, `load_vault_config(vault)` |
 | `records.py` | 레코드 모델, md 읽기·쓰기 | `ExperimentRecord`, `save_record(vault, rec, raw, summary, qa)`, `load_record`, `write_md`/`read_md`, `record_path`(경로 이탈 방어), `update_resolution` |
-| `llm.py` | **LLM 호출의 유일한 지점** | `generate(cfg, system, user) -> str`, `generate_parsed(cfg, system, user, Schema)` |
+| `llm.py` | **LLM 호출의 유일한 지점** | `generate(cfg, system, user) -> str`, `generate_parsed(cfg, system, user, Schema)`, `web_search(cfg, question, focus)`(언씬 질의 전용), `embed(texts, kind)`(구축 단계 전용, 키 없으면 None) |
 | `ingest.py` | 로그 구조화, 재질문 목록 생성 | `parse_log(cfg, text, vcfg)`, `missing_required(parsed, vcfg) -> list[질문]`, `to_record`, `save_unparsed` |
 | `absorb.py` | 위키 편찬, 관례 편찬 | `run_absorb(cfg)`, `compile_conventions(cfg, texts)` |
 | `diagnose.py` | ask 진입점 | `diagnose_data(cfg, text, run_id=None) -> {answer, evidence, records, wiki, cards, terms, unknown, mode, rounds, warnings, run_id}` |
@@ -147,6 +147,9 @@ required_parameters: [챔버 온도, 압력]   # 연구실이 반드시 기록�
 | `kg.py` | kg.sqlite 그래프 | `sync_records`, `rebuild`, `refresh`, `load_graph`, `graph_data`, `status` |
 | `research_agent.py` | 그래프 리서치 에이전트 | `research(cfg, question, run_id)`, 그래프 도구 `tool_*`, `verify` |
 | `trace.py` | 실행 기록 | `start`, `event`, `finish`, `list_runs`, `get_run` |
+| `manual.py` | 매뉴얼 PDF·웹 발췌 → 문서·청크·전문 색인·원문 노드 | `add_manual(vault, filename, data, pages, run_id)`, `add_web_source(vault, url, title, quote, run_id)`, `chunk_pages` |
+| `ontology_agent.py` | 온톨로지 에이전트 (구축 단계) | `build(cfg, lock, run_id, doc_id, budget)`, `record_candidates`, `reevaluate_waiting`, `pull_common`, `export_contribution` |
+| `review.py` | 승인 질문·항목, YAML 쓰기 | `list_questions`, `get_question`, `answer(cfg, qid, action, reason_code, edit)`, `bulk_accept`, `revoke`, `status` |
 | `feedback.py` | 해결 여부·실제 원인 기록 | `run_feedback(cfg, id, resolved, cause, note)` |
 | `seed.py` | 합성 데모 데이터 | `run_seed(cfg, n)` |
 | `server.py` | FastAPI 웹 서버, 배포 모드 | `create_app(cfg, deploy)`, `run_serve()` |
@@ -384,4 +387,5 @@ CLI 명령: `log`, `ask`, `absorb`(위키 재편찬), `feedback <id> --resolved 
 
 - **`AGENTS.md`는 MVP(2026-07) 시점 문서**다. "웹 UI·인증·다중 사용자 금지", "환경변수 3개뿐" 같은 조항은 이후 사용자 결정으로 바뀌었다. 웹 UI(08-01), 배포·인증(08-06)이 스펙을 거쳐 도입됐다. 현재 구조는 이 문서와 `docs/superpowers/specs/` 최신 스펙을 따른다. md가 진실이라는 원칙, UTF-8, 테스트 규칙은 그대로 유효하다.
 - 기능별 스펙: MVP(07-19) → 배포 패키징(07-22) → 웹 UI(08-01) → 배포·인증·참고문헌(08-06) → UI 배치·관례 학습·제미나이(08-12).
+- 온톨로지 KG(2026-10-07 스펙): M1(그래프 기반) → M2(매뉴얼·승인) → M3(언씬 웹) → M4(워크플로 뷰·실험 재생). 질의는 그래프만, 벡터는 구축 단계에서만 쓴다.
 - 브랜치: `main`(배포 기준)과 `develop`(작업 브랜치) 두 개만 둔다(2026-09-26 정리, 옛 `backend`·`frontend` 브랜치는 `main`에 합친 뒤 삭제). 작업은 `develop`에 커밋하고, 검증 후 `main`에 머지한다. 다음 단계는 로컬 확인 → Railway 배포다.
