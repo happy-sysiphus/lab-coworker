@@ -126,6 +126,50 @@ def _write_bytes(p: Path, data: bytes) -> None:
     os.replace(tmp, p)
 
 
+def _excerpt(page: str, quote: str, around: int = 1000) -> str:
+    q = " ".join(quote.split())
+    i = page.casefold().find(q.casefold())
+    return page[max(0, i - around):i + len(q) + around].strip() if i >= 0 else q
+
+
+def add_web_source(vault: Path, url: str, title: str, quote: str, run_id: str | None = None) -> dict:
+    """웹 카드 → 웹 발췌 문서(raw/web/<doc_id>.md, 인용 앞뒤 최대 1,000자). 이후는 매뉴얼과 같은 청킹·추출을 탄다."""
+    from urllib.parse import urlparse
+    from .research_agent import fetch_text, quote_found   # 질의 단계 함수를 재사용 (순환 import 회피)
+    vault = Path(vault)
+    page = fetch_text(url)
+    verified = quote_found(page, quote)
+    excerpt = _excerpt(page, quote) if verified else " ".join(str(quote or "").split())
+    if not excerpt:
+        raise ValueError("보낼 웹 발췌가 비어 있습니다")
+    sha = hashlib.sha256(f"{url}\n{' '.join(str(quote or '').split())}".encode("utf-8")).hexdigest()   # 같은 URL·quote = 같은 문서
+    trace.event(vault, run_id, "p3.web", "ok", f"웹 카드를 지식 후보로 보냄 · {title or url}", {"url": url})
+    trace.event(vault, run_id, "p2.candidates", "ok", "웹 발췌를 지식·확장 후보로 등록" + (" (원문 확인)" if verified else " (확인 불가)"))
+    with kg.db(vault) as conn:
+        row = conn.execute("select doc_id from doc where sha256=?", (sha,)).fetchone()
+        if row:
+            return {"doc_id": row[0], "created": False, "verified": verified}
+    doc_id = f"web-{slugify(title or urlparse(url).netloc)[:40]}-{sha[:6]}"
+    d = vault / "raw" / "web"
+    d.mkdir(parents=True, exist_ok=True)
+    fm = yaml.safe_dump({"url": url, "title": title, "retrieved_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                         "verified": verified}, allow_unicode=True, sort_keys=False)
+    write_atomic(d / f"{doc_id}.md", f"---\n{fm}---\n\n{excerpt}\n")
+    trace.event(vault, run_id, "p1.save", "ok", f"웹 발췌 저장 · raw/web/{doc_id}.md", {"doc_id": doc_id})
+    chunks = chunk_pages([(1, excerpt)])
+    vocab = load_vocabulary(vault)
+    with kg.db(vault) as conn:
+        conn.execute("insert into doc values(?,?,?,?,?,?,?,?,?,?)",
+                     (doc_id, "web", title or url, url, sha, 1, "all", "queued", None, time.time()))
+        for seq, (p, text) in enumerate(chunks, 1):
+            cid = f"{doc_id}#{seq}"
+            conn.execute("insert into chunk values(?,?,?,?,?,?,?,?)", (cid, doc_id, p, seq, text, "pending", 0, None))
+            conn.execute("insert into chunk_fts values(?,?,?)", (cid, doc_id, text))
+        kg.sync_passages(conn, vocab, doc_id)
+    trace.event(vault, run_id, "p1.chunk", "ok", f"청크 {len(chunks)}개 · 전문 색인")
+    return {"doc_id": doc_id, "created": True, "verified": verified, "chunks": len(chunks)}
+
+
 def add_manual(vault: Path, filename: str, data: bytes, pages: str | None = None,
                run_id: str | None = None) -> dict:
     """업로드 한 건을 문서로 등록한다. 같은 sha256이면 기존 문서를 돌려준다(멱등). 문서는 queued로 들어간다."""

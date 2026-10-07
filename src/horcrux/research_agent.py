@@ -9,6 +9,9 @@ from __future__ import annotations
 import hashlib
 import re
 import time
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from html.parser import HTMLParser
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -17,7 +20,7 @@ from pydantic import BaseModel, Field
 
 from . import kg, trace
 from .config import Config
-from .llm import generate, generate_parsed
+from .llm import WebUnsupported, generate, generate_parsed, web_search
 from .records import load_record, read_md, record_path
 from .vocab import TERM_KINDS, Vocabulary, canon, load_vocabulary
 
@@ -515,11 +518,69 @@ def _hits_ko(hits: dict) -> str:
     return " · ".join(f"{TOOL_KO.get(k, k)} {v}" for k, v in hits.items()) or "도구 없음"
 
 
-def research(cfg: Config, question: str, run_id: str | None = None) -> dict:
+class _Text(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.parts: list[str] = []
+        self.skip = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ("script", "style", "noscript"):
+            self.skip += 1
+
+    def handle_endtag(self, tag):
+        if tag in ("script", "style", "noscript") and self.skip:
+            self.skip -= 1
+
+    def handle_data(self, data):
+        if not self.skip:
+            self.parts.append(data)
+
+
+def fetch_text(url: str, timeout: float = 10, limit: int = 2_000_000) -> str | None:
+    """웹 카드 원문 확인용 페이지 텍스트(urllib·html.parser, 10초·2MB). PDF·실패는 None."""
+    if not str(url).startswith(("http://", "https://")):
+        return None
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (LAB GENE quote check)"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            if "pdf" in (r.headers.get("Content-Type") or "").lower():
+                return None
+            raw = r.read(limit)
+            charset = r.headers.get_content_charset() or "utf-8"
+        p = _Text()
+        p.feed(raw.decode(charset, "replace"))
+    except Exception:
+        return None
+    return " ".join(" ".join(p.parts).split())
+
+
+def quote_found(page: str | None, quote: str) -> bool:
+    q = " ".join(str(quote or "").split()).casefold()
+    return bool(page and q and q in " ".join(page.split()).casefold())
+
+
+def web_evidence(cfg: Config, question: str, focus: list[str] | None) -> tuple[list[dict], int]:
+    """웹 검색 1회 → 카드 web:<n>. 인용이 페이지에 그대로 있으면 verified(원문 확인), 아니면 확인 불가."""
+    hits = web_search(cfg, question, focus)
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        pages = list(ex.map(lambda h: fetch_text(h.url), hits))
+    now = time.strftime("%Y-%m-%d %H:%M")
+    cards = []
+    for i, (h, page) in enumerate(zip(hits, pages), 1):
+        ok = quote_found(page, h.quote)
+        cards.append({"id": f"web:{i}", "kind": "web", "title": f"웹 · {h.title or h.url}",
+                      "text": f"{h.quote}\n요약: {h.summary[:300]}\n출처: {h.url} ({'원문 확인' if ok else '확인 불가'})",
+                      "source": {"url": h.url, "title": h.title, "quote": h.quote, "summary": h.summary[:300],
+                                 "verified": ok, "retrieved_at": now}})
+    return cards, sum(1 for c in cards if c["source"]["verified"])
+
+
+def research(cfg: Config, question: str, run_id: str | None = None, web_ok=None) -> dict:
     vault = Path(cfg.vault)
     run = trace.start(vault, "ask", question[:60], run_id)
     try:
-        out = _research(cfg, vault, question, run)
+        out = _research(cfg, vault, question, run, web_ok)
     except Exception:
         trace.finish(vault, run, "failed")
         raise
@@ -527,7 +588,7 @@ def research(cfg: Config, question: str, run_id: str | None = None) -> dict:
     return out
 
 
-def _research(cfg: Config, vault: Path, question: str, run: str) -> dict:
+def _research(cfg: Config, vault: Path, question: str, run: str, web_ok=None) -> dict:
     t0 = time.perf_counter()
     fresh = kg.refresh(vault)
     vocab = load_vocabulary(vault)
@@ -572,6 +633,24 @@ def _research(cfg: Config, vault: Path, question: str, run: str) -> dict:
         non_wiki = any(c["kind"] != "wiki" for c in cards)
         mode = "seen" if non_wiki and not unknown else "partial" if non_wiki else "unseen"
         trace.event(vault, run, "p3.evaluate", "ok" if mode == "seen" else "info", f"mode {mode}", {"mode": mode})
+        if mode in ("partial", "unseen"):   # 언씬: partial은 미지 대상 중심, unseen은 질문 전체로 웹 1회
+            focus = unknown if mode == "partial" else None
+            t2 = time.perf_counter()
+            try:
+                if web_ok is not None and not web_ok():
+                    raise WebUnsupported("오늘 사용량 한도로 웹 검색을 건너뜁니다")
+                webc, verified = web_evidence(cfg, question, focus)
+                cards = cards + webc   # 웹 카드는 내부 카드 예산 밖에 최대 5장 — partial에서 밀려나지 않게
+                trace.event(vault, run, "p3.web", "ok",
+                            f"웹 결과 {len(webc)}개 · 원문 확인 {verified}개 · "
+                            + (f"대상 {', '.join(focus)}" if focus else "질문 전체"),
+                            {"urls": [c["source"]["url"] for c in webc]}, int((time.perf_counter() - t2) * 1000))
+            except WebUnsupported as e:
+                warnings.append(str(e))
+                trace.event(vault, run, "p3.web", "skip", str(e))
+            except Exception as e:
+                warnings.append(f"웹 검색 실패: {e}")
+                trace.event(vault, run, "p3.web", "fail", f"웹 검색 실패: {str(e)[:120]}")
     t1 = time.perf_counter()
     answer, issues, calls = answer_and_verify(cfg, question, cards)
     trace.event(vault, run, "p3.answer", "ok", f"Claude {calls}회", {"calls": calls},

@@ -55,7 +55,10 @@ export interface RecordDetail {
 export type Evidence = "records" | "knowledge" | "web" | "none";
 export interface EvidenceCard {
   id: string; kind: string; title: string; text: string;
-  source: { record_id?: string; doc_id?: string; page?: number; url?: string; wiki?: string; term_id?: string };
+  source: {
+    record_id?: string; doc_id?: string; page?: number; url?: string; wiki?: string; term_id?: string;
+    title?: string; quote?: string; summary?: string; verified?: boolean; retrieved_at?: string;   // 웹 카드
+  };
 }
 export interface AskResult {
   answer: string;

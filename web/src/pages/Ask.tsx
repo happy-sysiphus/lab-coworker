@@ -8,7 +8,7 @@ import ChatPane from "../components/ChatPane";
 import RecordCard from "../components/RecordCard";
 import { MobileBar, MobileTabs } from "../nav";
 import { getSession, saveSession } from "../store";
-import type { Session } from "../types";
+import type { EvidenceCard, Session } from "../types";
 
 // 근거 라벨 — 사례 / 지식만 / 웹 / 근거 없음. 답변의 출처를 정직하게 밝힌다
 const BANNERS = {
@@ -80,7 +80,8 @@ export default function Ask() {
   const result = session.askResult;
   const banner = result ? BANNERS[bannerKey(result.evidence)] : null;
   const note = result ? modeNote(result) : null;
-  const cards = (result?.cards ?? []).filter((c) => c.kind !== "rec");   // 사례는 위 목록에 이미 있다
+  const cards = (result?.cards ?? []).filter((c) => c.kind !== "rec" && c.kind !== "web");   // 사례는 위 목록에 이미 있다
+  const webCards = (result?.cards ?? []).filter((c) => c.kind === "web");
 
   return (
     <div className="flex h-screen flex-col md:flex-row">
@@ -160,6 +161,14 @@ export default function Ask() {
             </div>
           </div>
         )}
+        {webCards.length > 0 && (
+          <div className="mt-5">
+            <div className="text-xs text-slate-400">웹 근거 · 연구실 검증 전</div>
+            <div className="mt-2 space-y-2">
+              {webCards.map((c) => <WebCard key={`${result?.run_id}-${c.id}`} c={c} />)}
+            </div>
+          </div>
+        )}
         {result && !result.cards && result.wiki.length > 0 && (
           <div className="mt-5">
             <div className="text-xs text-slate-400">참고한 위키</div>
@@ -169,6 +178,52 @@ export default function Ask() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// 웹 카드 — 출처 링크, 원문 확인 표시, 지식 후보로 보내기(승인 화면에서 사람이 승인해야 그래프에 들어간다)
+function WebCard({ c }: { c: EvidenceCard }) {
+  const nav = useNavigate();
+  const [state, setState] = useState<{ status: "idle" | "sending" | "sent" | "error"; runId?: string; msg?: string }>(
+    { status: "idle" });
+  const s = c.source;
+  async function send() {
+    setState({ status: "sending" });
+    try {
+      const r = await api.webSource(s.url ?? "", s.title ?? "", s.quote ?? "");
+      setState({ status: "sent", runId: r.run_id });
+    } catch (e) {
+      setState({ status: "error", msg: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  return (
+    <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm">
+      <div className="flex items-center gap-2 text-xs">
+        <span className="rounded bg-white px-1.5 py-0.5 text-slate-500">{c.id}</span>
+        <span className={`rounded px-1.5 py-0.5 ${s.verified ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
+          {s.verified ? "원문 확인" : "확인 불가"}
+        </span>
+      </div>
+      <a href={s.url} target="_blank" rel="noopener noreferrer"
+        className="mt-1 block break-all font-medium text-blue-700 hover:underline">{s.title || s.url}</a>
+      {s.quote && <blockquote className="mt-1 border-l-2 border-amber-300 pl-2 text-xs text-slate-600">{s.quote}</blockquote>}
+      {s.summary && <div className="mt-1 text-xs text-slate-500">{s.summary}</div>}
+      {state.status === "sent" ? (
+        <div className="mt-2 flex flex-wrap gap-3 text-xs">
+          <span className="text-emerald-700">지식 후보로 보냈습니다</span>
+          <button onClick={() => nav("/review")} className="text-blue-600 hover:underline">검토 화면</button>
+          {state.runId && (
+            <button onClick={() => nav(`/flow?run=${state.runId}`)} className="text-blue-600 hover:underline">과정 보기</button>
+          )}
+        </div>
+      ) : (
+        <button onClick={send} disabled={state.status === "sending"}
+          className="mt-2 rounded bg-white px-2 py-1 text-xs font-medium text-amber-800 ring-1 ring-amber-200 enabled:hover:bg-amber-100 disabled:opacity-60">
+          {state.status === "sending" ? "보내는 중…" : "지식 후보로 보내기"}
+        </button>
+      )}
+      {state.status === "error" && <div className="mt-1 text-xs text-red-600">{state.msg}</div>}
     </div>
   );
 }

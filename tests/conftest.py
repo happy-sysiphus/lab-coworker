@@ -62,3 +62,12 @@ def kg_vault(tmp_path):
         p.write_text(text, encoding="utf-8")
     kg.rebuild(tmp_path)
     return tmp_path
+
+
+@pytest.fixture(autouse=True)
+def _no_network(monkeypatch):
+    """단위 테스트는 LLM·네트워크를 부르지 않는다 — 웹 검색과 원문 확인을 기본으로 막는다(필요한 테스트가 덮어쓴다)."""
+    from horcrux import research_agent
+    monkeypatch.setattr(research_agent, "web_search", lambda cfg, question, focus=None: [])
+    monkeypatch.setattr(research_agent, "fetch_text", lambda url, *a, **k: None)
+

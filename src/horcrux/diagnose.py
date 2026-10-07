@@ -16,8 +16,8 @@ MODE_NOTES = {
 }
 
 
-def diagnose_data(cfg: Config, text: str, run_id: str | None = None) -> dict:
-    return research(cfg, text, run_id)
+def diagnose_data(cfg: Config, text: str, run_id: str | None = None, web_ok=None) -> dict:
+    return research(cfg, text, run_id, web_ok)
 
 
 def diagnose(cfg: Config, text: str) -> str:

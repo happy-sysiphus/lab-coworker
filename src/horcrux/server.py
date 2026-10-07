@@ -96,6 +96,12 @@ class DomainsIn(BaseModel):
     domains: list[str]
 
 
+class WebSourceIn(BaseModel):
+    url: str
+    title: str = ""
+    quote: str = ""
+
+
 class BuildIn(BaseModel):
     doc_id: str | None = None
 
@@ -278,6 +284,12 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
                 raise ontology_agent.BudgetExceeded("오늘 사용량 한도를 초과했습니다")
         return bump
 
+    def web_budget(ctx: AuthCtx | None):
+        """웹 검색은 사용량을 1회 더 센다. 한도에 닿으면 웹 없이 답한다."""
+        if deploy is None or ctx is None:
+            return None
+        return lambda: deploy.db.bump_usage(ctx.lab["id"], ctx.lab["daily_llm_limit"])
+
     def reviewer(ctx: AuthCtx | None) -> str:
         return ctx.user_id if ctx is not None else "local"
 
@@ -330,7 +342,7 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
     def api_ask(inp: AskIn, ctx=Depends(require_lab)):
         check_usage(ctx)
         c = lab_cfg(ctx)
-        return diagnose_data(c, inp.text, run_id=inp.run_id)
+        return diagnose_data(c, inp.text, run_id=inp.run_id, web_ok=web_budget(ctx))
 
     @app.get("/api/records")
     def api_list(ctx=Depends(require_lab)):
@@ -465,6 +477,18 @@ def create_app(cfg: Config, deploy: DeployCtx | None = None) -> FastAPI:
             trace.event(c.vault, run_id, "p1.save", "info", f"이미 등록된 문서 {out['doc_id']} — 남은 청크를 이어서 처리")
         bg.add_task(_build_quietly, c, lab_lock(ctx), run_id, out["doc_id"], build_budget(ctx))
         return {"doc_id": out["doc_id"], "created": out["created"], "run_id": run_id}
+
+    @app.post("/api/kg/web-sources")
+    def api_web_source(inp: WebSourceIn, bg: BackgroundTasks, ctx=Depends(require_lab)):
+        c = lab_cfg(ctx)
+        run_id = trace.start(c.vault, "web_source", (inp.title or inp.url)[:60])
+        try:
+            out = manual.add_web_source(c.vault, inp.url, inp.title, inp.quote, run_id)
+        except ValueError as e:
+            trace.finish(c.vault, run_id, "failed")
+            raise HTTPException(400, str(e)) from None
+        bg.add_task(_build_quietly, c, lab_lock(ctx), run_id, out["doc_id"], build_budget(ctx))
+        return {"doc_id": out["doc_id"], "created": out["created"], "verified": out["verified"], "run_id": run_id}
 
     @app.post("/api/kg/build")
     def api_kg_build(inp: BuildIn, bg: BackgroundTasks, ctx=Depends(require_lab)):

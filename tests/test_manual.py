@@ -72,6 +72,28 @@ def test_same_bytes_return_existing_doc_and_same_name_gets_suffix(tmp_path):
     assert other["doc_id"] == "man-acme-manual-2"
 
 
+def test_web_source_saves_excerpt_once_and_chunks_it(tmp_path, monkeypatch):
+    from horcrux import research_agent
+    page = "x " * 800 + "Higher temperature promotes protodeboronation of heteroaryl boronic acids. " + "y " * 800
+    monkeypatch.setattr(research_agent, "fetch_text", lambda url, *a, **k: page)
+    run = trace.start(tmp_path, "web_source", "Wiki")
+    out = manual.add_web_source(tmp_path, "https://w.test/p", "Wiki page",
+                                "Higher temperature promotes  protodeboronation", run)
+    assert out["created"] and out["verified"] and out["doc_id"].startswith("web-wiki-page-")
+    md = (tmp_path / "raw" / "web" / f"{out['doc_id']}.md").read_text(encoding="utf-8")
+    assert "url: https://w.test/p" in md and "verified: true" in md
+    body = md.split("---\n", 2)[2]
+    assert "promotes protodeboronation" in body and len(body) < 2300   # 인용 앞뒤 최대 1,000자
+    g = kg.load_graph(tmp_path)
+    assert ("MENTIONS", "lg:protodeboronation") in {(r, d) for r, d, _ in g.out[f"psg:{out['doc_id']}#1"]}
+    assert [e["stage"] for e in trace.get_run(tmp_path, run)["events"]] == ["p3.web", "p2.candidates", "p1.save", "p1.chunk"]
+    monkeypatch.setattr(research_agent, "fetch_text", lambda url, *a, **k: None)   # 다시 못 받아도 같은 URL·quote면 기존 문서
+    again = manual.add_web_source(tmp_path, "https://w.test/p", "Wiki page", "Higher temperature promotes protodeboronation")
+    assert (again["doc_id"], again["created"], again["verified"]) == (out["doc_id"], False, False)
+    with pytest.raises(ValueError):
+        manual.add_web_source(tmp_path, "https://w.test/p", "", "   ")
+
+
 def test_unreadable_pdf_is_rejected_without_leftovers(tmp_path):
     with pytest.raises(ValueError):
         manual.add_manual(tmp_path, "broken.pdf", b"not a pdf at all")

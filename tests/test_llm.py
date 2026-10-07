@@ -307,3 +307,20 @@ def test_generate_passes_extra_env(fake_run):
                     extra_env={"CLAUDE_CODE_OAUTH_TOKEN": "tok"}), "s", "u")
     # fake_run이 (cmd, prompt, env) 3-튜플을 기록하도록 FakeRunFn.__call__ 시그니처에 env=None 추가
     assert fake_run.calls[0][2] == {"CLAUDE_CODE_OAUTH_TOKEN": "tok"}
+
+
+def test_web_search_claude_uses_only_web_tools(fake_run):
+    fake_run.out = '{"results": [{"title": "T", "url": "https://x.org/a", "quote": "q", "summary": "s"}]}'
+    hits = llm.web_search(Config(vault="v", provider="claude"), "질문", ["SPhos Pd G4"])
+    assert [(h.title, h.url) for h in hits] == [("T", "https://x.org/a")]
+    cmd, prompt, _ = fake_run.calls[0]
+    assert cmd == ["/bin/claude", "-p", "--tools", "WebSearch", "WebFetch", "--allowedTools", "WebSearch",
+                   "WebFetch", "--strict-mcp-config"]
+    assert "SPhos Pd G4" in prompt and "질문" in prompt
+
+
+def test_web_search_unsupported_providers(fake_run):
+    for p in ("gemini", "codex"):
+        with pytest.raises(llm.WebUnsupported):
+            llm.web_search(Config(vault="v", provider=p), "질문")
+

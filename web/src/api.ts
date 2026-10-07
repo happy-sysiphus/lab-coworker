@@ -65,6 +65,8 @@ export const api = {
   uploadManual: (file: File, pages?: string) =>
     upload<{ doc_id: string; created: boolean; run_id: string }>(
       `/api/manuals/${encodeURIComponent(file.name)}${pages ? `?pages=${encodeURIComponent(pages)}` : ""}`, file),
+  webSource: (url: string, title: string, quote: string) =>
+    http<{ doc_id: string; created: boolean; verified: boolean; run_id: string }>("POST", "/api/kg/web-sources", { url, title, quote }),
   kgStatus: () => http<KgStatus>("GET", "/api/kg/status"),
   kgBuild: (docId?: string) => http<{ run_id: string }>("POST", "/api/kg/build", { doc_id: docId ?? null }),
   questions: (tab: string) => http<{ questions: Question[]; auto?: AutoItem[] }>("GET", `/api/kg/questions?tab=${tab}`),

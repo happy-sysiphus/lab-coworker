@@ -197,7 +197,7 @@ def test_usage_uses_operator_set_limit(deploy_client, monkeypatch):
     client, db = deploy_client
     client.post("/api/labs", json={"name": "랩"}, headers=auth(tok("u1")))
     db.labs["lab-1"]["daily_llm_limit"] = 50             # Supabase 대시보드에서 고친 상황
-    monkeypatch.setattr(server, "diagnose_data", lambda cfg, t, run_id=None: {
+    monkeypatch.setattr(server, "diagnose_data", lambda cfg, t, run_id=None, web_ok=None: {
         "answer": "a", "evidence": "none", "records": [], "wiki": []})
     assert client.post("/api/ask", json={"text": "q"}, headers=auth(tok("u1"))).status_code == 200
     assert db.last_limit == 50

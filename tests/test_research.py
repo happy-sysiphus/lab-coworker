@@ -3,7 +3,10 @@ import pytest
 from horcrux import research_agent as ra
 from horcrux import trace
 from horcrux.config import Config
+from horcrux.llm import WebHit
 from horcrux.records import record_path
+
+REAL_FETCH = ra.fetch_text   # conftest가 테스트마다 네트워크 호출을 막기 전의 원본
 
 GOOD = ("유사 사례:\n- 같은 반응기에서 수율이 낮았던 사례가 있다 [rec:2026-09-01_a-001]\n"
         "원인 후보:\n- 탈붕소화가 확정된 적이 있다 [cause:lg:protodeboronation]\n"
@@ -148,3 +151,91 @@ def test_broader_alone_still_searches(kg_vault, monkeypatch):
     monkeypatch.setattr(ra, "generate", lambda cfg, s, u: GOOD)
     d = ra.research(Config(vault=kg_vault), "반응기 쪽에서 왜 값이 안 나올까요?")
     assert (d["mode"], d["evidence"]) == ("seen", "records")
+
+
+WEB_HITS = [WebHit(title="Plasma activation", url="https://a.test/p", quote="Plasma  activates the surface.",
+                      summary="플라즈마는 표면을 활성화한다"),
+            WebHit(title="Blog", url="https://b.test/q", quote="Something not on the page", summary="요약")]
+
+
+def _web(monkeypatch, seen):
+    def fake_search(cfg, question, focus=None):
+        seen.append((question, focus))
+        return WEB_HITS
+    monkeypatch.setattr(ra, "web_search", fake_search)
+    monkeypatch.setattr(ra, "fetch_text", lambda url, *a, **k:
+                        "Intro. Plasma activates the surface. More." if url == "https://a.test/p" else None)
+
+
+def test_unseen_searches_web_with_whole_question_and_checks_quotes(kg_vault, monkeypatch):
+    seen = []
+    _web(monkeypatch, seen)
+    monkeypatch.setattr(ra, "generate_parsed", lambda cfg, s, u, schema: ra.Reform(unknown=["플라즈마 처리"]))
+    monkeypatch.setattr(ra, "generate", lambda cfg, s, u:
+                        "원인 후보:\n- 외부 자료에 따르면 플라즈마는 표면을 활성화한다 [web:1]")
+    d = ra.research(Config(vault=kg_vault), "플라즈마 처리는 어떻게 하나요?")
+    assert seen == [("플라즈마 처리는 어떻게 하나요?", None)]
+    assert (d["mode"], d["evidence"], d["warnings"]) == ("unseen", "web", [])
+    assert [(c["id"], c["source"]["verified"]) for c in d["cards"]] == [("web:1", True), ("web:2", False)]
+    assert "원문 확인" in d["cards"][0]["text"] and "확인 불가" in d["cards"][1]["text"]
+    events = trace.get_run(kg_vault, d["run_id"])["events"]
+    assert [e["stage"] for e in events][-4:] == ["p3.evaluate", "p3.web", "p3.answer", "p3.verify"]
+    assert "원문 확인 1개" in next(e for e in events if e["stage"] == "p3.web")["summary"]
+
+
+def test_partial_web_focuses_on_unknown_and_keeps_internal_cards(kg_vault, monkeypatch):
+    seen = []
+    _web(monkeypatch, seen)
+    monkeypatch.setattr(ra, "generate_parsed", lambda cfg, s, u, schema: ra.Reform(unknown=["SPhos Pd G4"]))
+    monkeypatch.setattr(ra, "generate", lambda cfg, s, u: "유사 사례:\n- 일반 조언 [일반지식]")
+    d = ra.research(Config(vault=kg_vault), "flow reactor에서 SPhos Pd G4 써도 되나요?")
+    assert seen[0][1] == ["SPhos Pd G4"] and d["mode"] == "partial"
+    kinds = [c["kind"] for c in d["cards"]]
+    assert kinds[-2:] == ["web", "web"] and set(kinds[:-2]) - {"wiki"}   # 내부 카드는 그대로, 웹은 예산 밖 뒤에
+
+
+def test_web_failures_and_budget_become_warnings(kg_vault, monkeypatch):
+    monkeypatch.setattr(ra, "generate_parsed", lambda cfg, s, u, schema: ra.Reform(unknown=["플라즈마 처리"]))
+    monkeypatch.setattr(ra, "generate", lambda cfg, s, u: "확인 방법:\n- 일반 조언 [일반지식]")
+
+    def boom(cfg, question, focus=None):
+        raise RuntimeError("검색 시간 초과")
+    monkeypatch.setattr(ra, "web_search", boom)
+    d = ra.research(Config(vault=kg_vault), "플라즈마 처리는 어떻게 하나요?")
+    assert d["warnings"] == ["웹 검색 실패: 검색 시간 초과"] and d["cards"] == []
+    status = {e["stage"]: e["status"] for e in trace.get_run(kg_vault, d["run_id"])["events"]}
+    assert status["p3.web"] == "fail"
+
+    def unsupported(cfg, question, focus=None):
+        raise ra.WebUnsupported("codex는 웹 검색을 지원하지 않습니다")
+    monkeypatch.setattr(ra, "web_search", unsupported)
+    d = ra.research(Config(vault=kg_vault), "플라즈마 처리는 어떻게 하나요?")
+    assert d["warnings"] == ["codex는 웹 검색을 지원하지 않습니다"]
+    d = ra.research(Config(vault=kg_vault), "플라즈마 처리는 어떻게 하나요?", web_ok=lambda: False)
+    assert "사용량 한도" in d["warnings"][0]   # 한도에 닿으면 검색을 부르지 않는다
+
+
+class _Resp:
+    def __init__(self, body: bytes, ctype: str):
+        from email.message import Message
+        self.body, self.headers = body, Message()
+        self.headers["Content-Type"] = ctype
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self, n):
+        return self.body[:n]
+
+
+def test_fetch_text_strips_scripts_and_skips_pdf(monkeypatch):
+    html = "<html><script>var x = 1</script><p>Protodeboronation   is <b>fast</b></p></html>".encode("utf-8")
+    monkeypatch.setattr(ra.urllib.request, "urlopen", lambda req, timeout: _Resp(html, "text/html; charset=utf-8"))
+    assert REAL_FETCH("https://x.test/a") == "Protodeboronation is fast"
+    monkeypatch.setattr(ra.urllib.request, "urlopen", lambda req, timeout: _Resp(b"%PDF-1.4", "application/pdf"))
+    assert REAL_FETCH("https://x.test/a.pdf") is None
+    assert REAL_FETCH("file:///etc/passwd") is None
+    assert ra.quote_found("A  b C", "a B") and not ra.quote_found(None, "a") and not ra.quote_found("a", "")

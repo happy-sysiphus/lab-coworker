@@ -49,7 +49,7 @@ def test_ask_passthrough_with_run_id(client, monkeypatch):
     c, _ = client
     seen = {}
 
-    def fake(cfg, t, run_id=None):
+    def fake(cfg, t, run_id=None, web_ok=None):
         seen["run_id"] = run_id
         return {"answer": "a", "evidence": "none", "records": [], "wiki": []}
 
@@ -228,6 +228,29 @@ def test_manual_upload_builds_questions_and_answers_them(client, monkeypatch):
     assert c.post("/api/kg/items/없음/revoke").status_code == 400
     runs = {r["kind"] for r in c.get("/api/flow/runs").json()["runs"]}
     assert {"manual", "approval"} <= runs
+
+
+def test_web_card_becomes_knowledge_candidate(client, monkeypatch):
+    from horcrux import ontology_agent as oa
+    c, vault = client
+    quote = "Oxygen in the feed promotes homocoupling of boronic acids."
+    out = oa.XOut(chunks=[oa.XChunk(chunk_id="x", claims=[oa.XClaim(
+        subject="oxygen", predicate="promotes", object="homocoupling", quote=quote)])])
+
+    def fake(cfg, s, u, schema):
+        if schema is oa.XOut:
+            out.chunks[0].chunk_id = u.split("[chunk_id=")[1].split("]")[0]
+            return out
+        return oa.Choices()
+    monkeypatch.setattr(oa, "generate_parsed", fake)
+    monkeypatch.setattr(oa, "embed", lambda texts, kind: None)
+    r = c.post("/api/kg/web-sources", json={"url": "https://w.test/o2", "title": "O2 note", "quote": quote}).json()
+    assert r["doc_id"].startswith("web-o2-note-") and r["run_id"] and r["verified"] is False
+    st = c.get("/api/kg/status").json()
+    assert any(d["doc_id"] == r["doc_id"] for d in st["docs"])
+    assert c.post("/api/kg/web-sources", json={"url": "https://w.test/o2", "quote": " "}).status_code == 400
+    stages = [e["stage"] for e in __import__("horcrux.trace", fromlist=["x"]).get_run(vault, r["run_id"])["events"]]
+    assert stages[:4] == ["p3.web", "p2.candidates", "p1.save", "p1.chunk"]
 
 
 def test_record_save_asks_about_unlinked_strings(client, monkeypatch):
