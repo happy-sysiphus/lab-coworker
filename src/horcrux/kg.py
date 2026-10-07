@@ -39,26 +39,43 @@ def kg_path(vault: Path) -> Path:
     return Path(vault) / "kg.sqlite"
 
 
+def _open(vault: Path) -> sqlite3.Connection:
+    conn = sqlite3.connect(kg_path(vault), timeout=10)
+    try:
+        conn.row_factory = sqlite3.Row
+        conn.execute("pragma journal_mode=wal")
+        try:
+            row = conn.execute("select value from meta where key='schema_version'").fetchone()
+            ver = json.loads(row[0]) if row else None
+        except sqlite3.OperationalError:
+            ver = None
+        if ver != SCHEMA_VERSION:
+            # 파생물이므로 스키마가 바뀌면 지우고 다시 만든다. LLM 캐시와 실행 기록만 남긴다
+            names = [r[0] for r in conn.execute("select name from sqlite_master where type='table'")]
+            for name in names:
+                if name not in KEEP_TABLES and not name.startswith("sqlite_"):
+                    conn.execute(f'drop table "{name}"')
+            conn.executescript(_DDL)
+            conn.execute("insert or replace into meta values('schema_version', ?)", (json.dumps(SCHEMA_VERSION),))
+            conn.commit()
+        return conn
+    except Exception:
+        conn.close()   # Windows는 열린 파일을 지우지 못한다
+        raise
+
+
 def _connect(vault: Path) -> sqlite3.Connection:
     Path(vault).mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(kg_path(vault), timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.execute("pragma journal_mode=wal")
     try:
-        row = conn.execute("select value from meta where key='schema_version'").fetchone()
-        ver = json.loads(row[0]) if row else None
+        return _open(vault)
     except sqlite3.OperationalError:
-        ver = None
-    if ver != SCHEMA_VERSION:
-        # 파생물이므로 스키마가 바뀌면 지우고 다시 만든다. LLM 캐시와 실행 기록만 남긴다
-        names = [r[0] for r in conn.execute("select name from sqlite_master where type='table'")]
-        for name in names:
-            if name not in KEEP_TABLES and not name.startswith("sqlite_"):
-                conn.execute(f'drop table "{name}"')
-        conn.executescript(_DDL)
-        conn.execute("insert or replace into meta values('schema_version', ?)", (json.dumps(SCHEMA_VERSION),))
-        conn.commit()
-    return conn
+        raise   # 잠김 같은 일시적 오류 — 파일을 지우면 안 된다
+    except sqlite3.DatabaseError as e:
+        # 파생물 파일이 깨졌다(동기화 폴더 충돌, 중단된 쓰기). 지우고 다시 만든다 — 잃는 것은 실행 기록·캐시뿐
+        print(f"(kg.sqlite가 손상돼 다시 만듭니다: {e})")
+        for suffix in ("", "-wal", "-shm"):
+            Path(f"{kg_path(vault)}{suffix}").unlink(missing_ok=True)
+        return _open(vault)
 
 
 @contextmanager

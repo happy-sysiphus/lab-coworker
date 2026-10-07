@@ -121,3 +121,30 @@ def test_llm_failure_marks_run_failed(kg_vault, monkeypatch):
     with pytest.raises(RuntimeError):
         ra.research(Config(vault=kg_vault), "XPhos Pd G3 flow reactor", run_id="r-fail")
     assert trace.get_run(kg_vault, "r-fail")["run"]["status"] == "failed"
+
+
+def test_malformed_claims_are_skipped_with_warning(kg_vault, monkeypatch):
+    import yaml
+    p = kg_vault / "ontology" / "claims.yaml"
+    doc = yaml.safe_load(p.read_text(encoding="utf-8"))
+    doc["claims"] += [
+        {"id": "bad-range", "subject": "quantitykind:Temperature", "predicate": "spec_range",
+         "object": "lg:flow_reactor", "conditions": {"range": {"unit:DEG_C": [30]}}},
+        {"id": "bad-cond", "subject": "quantitykind:Temperature", "predicate": "promotes",
+         "object": "lg:protodeboronation", "conditions": "high"},
+        {"id": "bad-src", "subject": "lg:protodeboronation", "predicate": "decreases",
+         "object": "lg:conversion", "sources": "man-x"}]
+    p.write_text(yaml.safe_dump(doc, allow_unicode=True), encoding="utf-8")
+    monkeypatch.setattr(ra, "generate_parsed", _no_reform)
+    monkeypatch.setattr(ra, "generate", lambda cfg, s, u: GOOD)
+    d = ra.research(Config(vault=kg_vault), "flow reactor temperature 120도에서 XPhos Pd G3 수율이 낮아요")
+    assert {"spec:s-1", "clm:c-1"} <= {c["id"] for c in d["cards"]}
+    assert sum("claims.yaml" in w for w in d["warnings"]) == 3
+
+
+def test_broader_alone_still_searches(kg_vault, monkeypatch):
+    monkeypatch.setattr(ra, "generate_parsed",
+                        lambda cfg, s, u, schema: ra.Reform(term_ids=["lg:flow_reactor"], tools=["broader"]))
+    monkeypatch.setattr(ra, "generate", lambda cfg, s, u: GOOD)
+    d = ra.research(Config(vault=kg_vault), "반응기 쪽에서 왜 값이 안 나올까요?")
+    assert (d["mode"], d["evidence"]) == ("seen", "records")

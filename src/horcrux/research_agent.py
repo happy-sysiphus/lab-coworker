@@ -514,12 +514,15 @@ def _research(cfg: Config, vault: Path, question: str, run: str) -> dict:
             warnings.append(f"질문 재구성 실패: {e}")
         trace.event(vault, run, "p3.reformulate", "ok", f"용어 {len(reform.term_ids)}개, 버린 id {len(dropped)}개",
                     {"term_ids": reform.term_ids, "dropped": dropped, "unknown": reform.unknown})
-        tools = reform.tools or list(INITIAL_TOOLS)
-        trace.event(vault, run, "p3.tool", "ok", f"도구: {', '.join(tools)}", {"tools": tools})
+        # broader는 카드를 내는 도구가 아니라 용어를 넓히는 수식어다 — broader만 골라도 검색은 돈다
+        broader = "broader" in reform.tools
+        tools = [t for t in reform.tools if t != "broader"] or list(INITIAL_TOOLS)
+        shown = tools + (["broader"] if broader else [])
+        trace.event(vault, run, "p3.tool", "ok", f"도구: {', '.join(shown)}", {"tools": shown})
         for t in reform.term_ids:
             if t not in link.terms:
                 link.terms.append(t)
-        if "broader" in tools:
+        if broader:
             for t in list(link.terms):
                 parent = vocab.terms.get(t, {}).get("parent")
                 if parent and parent not in link.terms:

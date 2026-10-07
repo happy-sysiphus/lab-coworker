@@ -130,3 +130,11 @@ def test_graph_data_for_ui(tmp_path):
     assert fr["rec_ids"] == ["r1"] and fr["status"] == "verified" and fr["label_ko"] == "흐름 반응기"
     assert all(link["source"] in ids and link["target"] in ids for link in data["links"])
     assert kg.status(tmp_path)["nodes"] >= 3
+
+
+def test_corrupt_kg_sqlite_is_recreated(tmp_path):
+    _save(tmp_path, "r1", equipment=["flow reactor"])
+    kg.kg_path(tmp_path).write_bytes(b"this is not a sqlite database " * 100)
+    out = kg.refresh(tmp_path)
+    assert (out["mode"], out["records"]) == ("rebuild", 1)
+    assert ("USES_EQUIPMENT", "lg:flow_reactor") in _edges(tmp_path, "r1")

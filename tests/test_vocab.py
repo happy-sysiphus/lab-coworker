@@ -99,3 +99,18 @@ def test_predicate_synonyms(tmp_path):
     assert v.predicate("raises")["name"] == "increases"
     assert v.predicate("competes with")["name"] == "competes_with"
     assert v.predicate("explodes") is None
+
+
+def test_structurally_broken_overlay_entries_are_skipped(tmp_path):
+    _overlay(tmp_path, {
+        "terms": [{"id": "lab:fr-01", "label": "FR-01", "kind": "equipment", "synonyms": [1, None, "첫 반응기"]},
+                  {"id": "lab:x", "label": None, "kind": "equipment"}],
+        "overrides": [{"term_id": "CHEBI:26911", "synonyms_add": "thf2"}],
+        "aliases": [{"surface": None, "term_id": "lg:reaction_yield", "verdict": "positive"},
+                    {"surface": "수율", "term_id": ["bad"], "verdict": "positive"}]})
+    v = load_vocabulary(tmp_path)
+    assert v.link("equipment", "첫 반응기") == ("linked", ["lab:fr-01"])
+    assert v.link("material", "thf2") == ("linked", ["CHEBI:26911"])   # 문자열 하나는 동의어 하나로 받는다
+    assert [t for *_, t in v.find_mentions("the flow reactor h")] == ["lg:flow_reactor"]   # 한 글자 표면형이 없다
+    assert v.link("metric", "None") == ("unlinked", [])
+    assert any("lab:x" in w for w in v.warnings)

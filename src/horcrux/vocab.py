@@ -220,6 +220,34 @@ class Vocabulary:
         return "inside" if c[1] - eps <= a[1] and b[1] <= d[1] + eps else "outside"
 
 
+def _strs(v) -> list[str]:
+    """손편집 YAML의 표면형 목록 — 문자열 하나도 목록으로 받고, 빈 값·문자열이 아닌 값은 버린다."""
+    return [s.strip() for s in (v if isinstance(v, list) else [v]) if isinstance(s, str) and s.strip()]
+
+
+def _entries(doc: dict, key: str) -> list:
+    v = doc.get(key) or []
+    return v if isinstance(v, list) else [v]
+
+
+def _claim_ok(c) -> bool:
+    """클레임 모양 검사 — 손으로 쓴 claims.yaml의 구조 실수가 질의를 멈추지 않게 한다."""
+    if not isinstance(c, dict) or not all(isinstance(c.get(k), str) and c[k]
+                                          for k in ("id", "subject", "predicate", "object")):
+        return False
+    cond, src = c.get("conditions") or {}, c.get("sources") or []
+    if not isinstance(cond, dict) or not isinstance(src, list) or not all(isinstance(s, dict) for s in src):
+        return False
+    rng, fixed = cond.get("range") or {}, cond.get("fixed") or {}
+
+    def num(x) -> bool:
+        return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+    return (isinstance(rng, dict) and isinstance(fixed, dict)
+            and all(isinstance(v, list) and len(v) == 2 and all(map(num, v)) for v in rng.values())
+            and all(cond.get(k) is None or isinstance(cond[k], str) for k in ("material", "equipment")))
+
+
 def load_vocabulary(vault: Path) -> Vocabulary:
     """공통 어휘(볼트 사본) + overlay(연구실 용어·별칭·오버라이드) + 승인 클레임."""
     vault = Path(vault)
@@ -228,26 +256,42 @@ def load_vocabulary(vault: Path) -> Vocabulary:
     overlay = _safe_yaml(vault / "ontology" / "overlay.yaml", warnings)
     claims_doc = _safe_yaml(vault / "ontology" / "claims.yaml", warnings)
     terms = {t["id"]: dict(t) for t in common.get("terms", [])}
-    for t in overlay.get("terms") or []:
-        if isinstance(t, dict) and t.get("id") and t.get("label") and t.get("kind") in TERM_KINDS:
-            terms[t["id"]] = {"synonyms": [], "parent": None, "label_ko": "", "source": "lab",
-                              "verified": False, **t}
-    for o in overlay.get("overrides") or []:
-        t = terms.get(o.get("term_id")) if isinstance(o, dict) else None
+    # 손편집 파일의 구조 실수(빈 항목, 숫자, 목록 대신 문자열)는 그 항목만 건너뛰고 경고한다
+    for t in _entries(overlay, "terms"):
+        if not (isinstance(t, dict) and isinstance(t.get("id"), str) and isinstance(t.get("label"), str)
+                and t["label"].strip() and t.get("kind") in TERM_KINDS):
+            warnings.append(f"overlay.yaml 용어를 건너뜀(id·label·kind 확인): {t.get('id') if isinstance(t, dict) else t}")
+            continue
+        terms[t["id"]] = {"label_ko": "", "source": "lab", "verified": False, **t,
+                          "label": t["label"].strip(), "synonyms": _strs(t.get("synonyms")),
+                          "parent": t["parent"] if isinstance(t.get("parent"), str) else None}
+    for o in _entries(overlay, "overrides"):
+        tid = o.get("term_id") if isinstance(o, dict) else None
+        t = terms.get(tid) if isinstance(tid, str) else None
         if t is None:
             continue
-        t["synonyms"] = list(t.get("synonyms", [])) + list(o.get("synonyms_add") or [])
-        if o.get("label_override"):
-            t["display"] = o["label_override"]
+        t["synonyms"] = list(t.get("synonyms", [])) + _strs(o.get("synonyms_add"))
+        if isinstance(o.get("label_override"), str) and o["label_override"].strip():
+            t["display"] = o["label_override"].strip()
         if o.get("hidden"):
             t["hidden"] = True
-    claims = [c for c in (common.get("claims") or []) + (claims_doc.get("claims") or [])
-              if isinstance(c, dict) and c.get("id")]
+    aliases = []
+    for a in _entries(overlay, "aliases"):
+        if (isinstance(a, dict) and isinstance(a.get("term_id"), str)
+                and isinstance(a.get("surface"), str) and a["surface"].strip()):
+            aliases.append(a)
+        else:
+            warnings.append(f"overlay.yaml 별칭을 건너뜀(surface·term_id 확인): {a}")
+    claims = []
+    for c in (common.get("claims") or []) + _entries(claims_doc, "claims"):
+        if _claim_ok(c):
+            claims.append(c)
+        else:
+            warnings.append(f"claims.yaml 클레임을 건너뜀(형식 확인): {c.get('id') if isinstance(c, dict) else c}")
     return Vocabulary(
         terms=terms, units=list(common.get("units", [])),
         predicates={p["name"]: p for p in common.get("predicates", [])},
-        aliases=[a for a in overlay.get("aliases") or [] if isinstance(a, dict)],
-        claims=claims, version=str(common.get("version", "")), warnings=warnings)
+        aliases=aliases, claims=claims, version=str(common.get("version", "")), warnings=warnings)
 
 
 # ---------------------------------------------------------------- 도메인 레지스트리 (시연 범위)
