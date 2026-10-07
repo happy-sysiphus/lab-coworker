@@ -1,0 +1,146 @@
+claims:
+- id: c-f33ffc518bf0
+  subject: RXNO:0000140
+  predicate: requires
+  object: CHEBI:22695
+  conditions:
+    material: null
+    equipment: null
+    range: {}
+    fixed: {}
+  claim_status: reported
+  spec_kind: null
+  sources:
+  - doc_id: man-manual-flow-suzuki
+    chunk_id: man-manual-flow-suzuki#2
+    page: 2
+    quote: Suzuki-Miyaura coupling requires a base such as DBU.
+  origin: code
+  reviewer: null
+  reviewed_at: 2026-10-07T10:21:39+0900
+- id: c-b54db49c177a
+  subject: quantitykind:Temperature
+  predicate: promotes
+  object: lg:protodeboronation
+  conditions:
+    material: CHEBI:38269
+    equipment: null
+    range: {}
+    fixed: {}
+  claim_status: reported
+  spec_kind: null
+  sources:
+  - doc_id: man-manual-flow-suzuki
+    chunk_id: man-manual-flow-suzuki#2
+    page: 2
+    quote: Higher temperature promotes protodeboronation of heteroaryl boronic acids.
+  origin: llm
+  reviewer: local
+  reviewed_at: 2026-10-07T10:24:44+0900
+- id: c-fde8e74ba8f7
+  subject: lg:protodeboronation
+  predicate: decreases
+  object: lg:reaction_yield
+  conditions:
+    material: null
+    equipment: null
+    range: {}
+    fixed: {}
+  claim_status: reported
+  spec_kind: null
+  sources:
+  - doc_id: man-manual-flow-suzuki
+    chunk_id: man-manual-flow-suzuki#2
+    page: 2
+    quote: Protodeboronation decreases reaction yield because the boronic acid is
+      consumed before transmetallation.
+  origin: llm
+  reviewer: local
+  reviewed_at: 2026-10-07T10:24:47+0900
+- id: c-2d999a01ba85
+  subject: lg:residence_time
+  predicate: increases
+  object: lg:conversion
+  conditions:
+    material: null
+    equipment: null
+    range: {}
+    fixed: {}
+  claim_status: reported
+  spec_kind: null
+  sources:
+  - doc_id: man-manual-flow-suzuki
+    chunk_id: man-manual-flow-suzuki#2
+    page: 2
+    quote: Longer residence time increases conversion until the catalyst deactivates.
+  origin: llm
+  reviewer: local
+  reviewed_at: 2026-10-07T10:24:50+0900
+- id: c-00042b21b850
+  subject: quantitykind:Temperature
+  predicate: spec_range
+  object: lg:flow_reactor
+  conditions:
+    material: null
+    equipment: lg:flow_reactor
+    range:
+      unit:DEG_C:
+      - 30.0
+      - 110.0
+    fixed: {}
+  claim_status: reported
+  spec_kind: allowed
+  sources:
+  - doc_id: man-manual-flow-suzuki
+    chunk_id: man-manual-flow-suzuki#1
+    page: 1
+    quote: The flow reactor temperature must stay between 30 and 110 °C.
+  origin: llm
+  reviewer: local
+  reviewed_at: 2026-10-07T10:24:53+0900
+- id: c-d139ad63981b
+  subject: lg:residence_time
+  predicate: spec_range
+  object: lg:flow_reactor
+  conditions:
+    material: null
+    equipment: lg:flow_reactor
+    range:
+      unit:SEC:
+      - 60.0
+      - 600.0
+    fixed: {}
+  claim_status: reported
+  spec_kind: allowed
+  sources:
+  - doc_id: man-manual-flow-suzuki
+    chunk_id: man-manual-flow-suzuki#1
+    page: 1
+    quote: The residence time in the flow reactor must stay between 60 and 600 s.
+  origin: llm
+  reviewer: local
+  reviewed_at: 2026-10-07T10:24:56+0900
+- id: c-fca17fd25182
+  subject: lab:mida-boronate
+  predicate: inhibits
+  object: lg:protodeboronation
+  conditions:
+    material: null
+    equipment: null
+    range: {}
+    fixed: {}
+  claim_status: reported
+  spec_kind: null
+  sources:
+  - doc_id: web-mida-boronate-chem-station-10d261
+    chunk_id: web-mida-boronate-chem-station-10d261#1
+    page: 1
+    quote: Despite a protective ability associated with MIDA boronates, Burke and
+      coworkers have successfully developed an approach that slowly releases boronic
+      acids in situ into the reaction mixture for cross-coulong reactions (see earlier
+      discussion). The slow release of these boronic acids suppresses side reactions
+      such as protodeboronation and homocoupling reactions.
+  origin: llm
+  reviewer: local
+  reviewed_at: 2026-10-07T10:35:03+0900
+version: 7

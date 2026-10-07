@@ -1,0 +1,39 @@
+terms:
+- id: lab:xphos-pd-g3
+  label: XPhos Pd G3
+  kind: material
+  parent: lg:precatalyst_g3
+  label_ko: XPhos 팔라듐 G3 전촉매
+  synonyms: []
+  origin: human
+  reviewer: local
+  qid: q-e7ebee3f1817
+  reviewed_at: 2026-10-07T10:24:59+0900
+- id: lab:oxygen
+  label: oxygen
+  kind: material
+  parent: null
+  label_ko: 산소
+  synonyms: []
+  origin: human
+  reviewer: local
+  qid: q-c699bfc6ce91
+  reviewed_at: 2026-10-07T10:25:02+0900
+- id: lab:mida-boronate
+  label: MIDA boronate
+  kind: material
+  parent: CHEBI:50979
+  label_ko: MIDA 보론산 에스터
+  synonyms: []
+  origin: human
+  reviewer: local
+  qid: q-3fc579159ba0
+  reviewed_at: 2026-10-07T10:34:45+0900
+version: 4
+aliases:
+- surface: MIDA boronates
+  term_id: lab:mida-boronate
+  verdict: positive
+  origin: human
+  reviewer: local
+  qid: q-2f42e57a834d
